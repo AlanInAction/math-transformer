@@ -1,6 +1,6 @@
 import unicodedata
 import logging
-
+logger = logging.getLogger(__name__)
 # BPE: byte pair encoding, start from sigma N=1, construct vocabulary by symbol merge
 
 def bpe(charseq: str, n_ite_limit: int):
@@ -18,10 +18,10 @@ def bpe(charseq: str, n_ite_limit: int):
         countByOne(cardinal_map, charseq[i])
         total_cardinal += 1
 
-    print(symbol_list)
-    print(cardinal_map)
+    logger.debug(symbol_list)
+    logger.debug(cardinal_map)
     for i in range(seq_n):
-        print("{}-{}".format(cardinal_map[charseq[i]], total_cardinal))
+        logger.debug("{}-{}".format(cardinal_map[charseq[i]], total_cardinal))
         symbol_dist[charseq[i]] = cardinal_map[charseq[i]] / total_cardinal
         
     # print("初始概率:{}".format(symbol_dist))
@@ -133,9 +133,10 @@ def bpe_rec(set_tuple: tuple, metric_tuple: tuple, bpe_param_tuple: tuple):
     total_cardinal = len(new_symbol_list)
     del symbol_dist
     symbol_dist = dict()
+    logger.debug("cardinal map:{}".format(cardinal_map))
     del cardinal_map
     cardinal_map = dict()
-    print("cardinal map:{}".format(cardinal_map))
+   
     
     for i in range(len(new_symbol_list)):
         if cardinal_map.get(new_symbol_list[i]):
@@ -202,16 +203,20 @@ def get_corpus(path: str, line_limit: int):
 
 def bpe_chapter(path: str, line_limit: int, ite: int):
     lint_char_seq = get_corpus(path, line_limit)
+    
     new_symbol_list = bpe(lint_char_seq, ite)
     with open(path + "res.txt", "w+", encoding="UTF-8") as f:
         f.write("|".join(new_symbol_list))
 
 def bpe_test():
-    test_str = "林冲风雪山神庙，武松喋血岳阳楼，林冲误入白虎堂，鲁智深智取二龙山" # 修复：避免使用内置关键字 str 作为变量名
-    print(test_str[0:4])
+    test_str = "林冲风雪山神庙，武松喋血岳阳楼，林冲误入白虎堂，鲁智深智取二龙山" 
+    logger.debug(test_str[0:4])
     bpe(test_str, 4)
 
-if __name__ == "__main__": # 修复：还原被替换的 __name__ 和 __main__
+if __name__ == "__main__": 
+    logging.basicConfig(
+        level=logging.DEBUG,
+    )
     bpe_test()
     path = "/Users/alan/dev/refactor/math-lab/corpus/西游记.txt"
     n_limit = 100000

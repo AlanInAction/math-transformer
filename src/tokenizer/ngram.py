@@ -1,3 +1,5 @@
+import logging
+logger = logging.getLogger(__name__)
 # ngram，metric symbol space and prefix prob
 def ngram(charseq:str,nLimit,topN:int):
     # 1. Split string to N=1 symbol
@@ -13,13 +15,13 @@ def ngram(charseq:str,nLimit,topN:int):
         countByOne(cardinal_map,charseq[i])
         total_cardinal+= 1
 
-    print(symbol_list)
-    print(cardinal_map)
+    logger.debug(symbol_list)
+    logger.debug(cardinal_map)
     symbol_dist[cur_level] = dict()
     for i in range(seq_n):
-        print("{}-{}".format(cardinal_map[charseq[i]],total_cardinal))
+        logger.debug("{}-{}".format(cardinal_map[charseq[i]],total_cardinal))
         symbol_dist[cur_level][charseq[i]] = cardinal_map[charseq[i]]/total_cardinal
-    print("初始概率:{}".format(symbol_dist))
+    logger.debug("初始概率:{}".format(symbol_dist))
     metric_tuple = (cardinal_map,total_cardinal,symbol_dist)
     set_tuple = (symbol_list,cur_level)
     bpe_param_tuple = (nLimit,topN)
@@ -27,7 +29,7 @@ def ngram(charseq:str,nLimit,topN:int):
     
     # sorted_symbol_dist = sorted(symbol_dist.items(),key=lambda item:(-item[1],-len(item[0])))
     for level, dist in symbol_dist.items():
-        print(f"N={level}: {top_n(dist, topN)}")
+        logger.debug(f"N={level}: {top_n(dist, topN)}")
 
 def top_n(dist, n):
     return sorted(
@@ -75,7 +77,7 @@ def ngram_step(charSeq:str,set_tuple:tuple,metric_tuple:tuple,bpe_param_tuple:tu
         cur_seq = charSeq[left_index:right_index+1]
         symbol_dist[cur_level][cur_seq] = symbol_dist[cur_level-1][pre_seq]*\
         (cardinal_map[cur_seq]/prefix_cardinal_map[pre_seq])
-        print("序列：{}-{}-概率：{}-{}\{}".format(pre_seq,cur_seq,symbol_dist[cur_level-1][pre_seq],cardinal_map[cur_seq],prefix_cardinal_map[pre_seq]))
+        logger.debug("序列：{}-{}-概率：{}-{}\{}".format(pre_seq,cur_seq,symbol_dist[cur_level-1][pre_seq],cardinal_map[cur_seq],prefix_cardinal_map[pre_seq]))
     metric_tuple = (cardinal_map,total_cardinal,symbol_dist)
     set_tuple = (symbol_list,cur_level)
     bpe_param_tuple = (nLimit,topN)
@@ -89,8 +91,11 @@ def countByOne(cardinal_map:dict,symbol:str):
         cardinal_map[symbol] = 1
 
 if __name__=="__main__":
+    logging.basicConfig(
+        level=logging.DEBUG
+    )
     str = "林冲风雪山神庙，武松喋血岳阳楼，林冲误入白虎堂"
-    print(str[0:4])
+    logger.debug(str[0:4])
     ngram(str,4,3)
 
 

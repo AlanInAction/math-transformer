@@ -1,13 +1,16 @@
 from src.tokenizer import bpe
 import os
 import json
+import logging
+import math
+logger = logging.getLogger(__name__)
 cur_path = os.path.curdir
 SPARSE_JOIN_KEY = "-"
 MONKEY_KING = "孙悟空"
 ZUSHI = "祖师"
 # co_occurrence embedding input:symbol_sequence after tokenizer
-def co_occurrence_embedding(symbol_sequece:list,token_id_map_fname:str):
-    print("start embedding")
+def co_occurrence_embedding(symbol_sequece:list,token_id_map_fname:str,window_size:int,bidirection:bool):
+    logger.debug("start embedding")
     # 1. symbol sequce Seuence S
     
     # 2. vocabulary V
@@ -30,19 +33,26 @@ def co_occurrence_embedding(symbol_sequece:list,token_id_map_fname:str):
     # 3. co-occurrence
     sparse_co_occurrence_map = dict()
     for i in range(len(symbol_sequece)):
-        right_index = i+1
-        if right_index>=len(symbol_sequece):
-            break
-        set_sparse_matrix_val(sparse_co_occurrence_map,token_id_map.get(symbol_sequece[i]),token_id_map.get(symbol_sequece[right_index]))
+        # cur window contains i,so total operatable element = window_size-1
+        for j in range(window_size-1):
+            right_index = i+(j+1)
+            if right_index>=len(symbol_sequece):
+                break
+            set_sparse_matrix_val(sparse_co_occurrence_map,token_id_map.get(symbol_sequece[i]),token_id_map.get(symbol_sequece[right_index]))
+            if bidirection:
+                set_sparse_matrix_val(sparse_co_occurrence_map,token_id_map.get(symbol_sequece[right_index]),token_id_map.get(symbol_sequece[i]))
     co_occur_val = get_sparse_matrix_val(sparse_co_occurrence_map,0,1)
-    print("{}-{}:{}".format(reverse_id_token_map.get(0),reverse_id_token_map.get(1),co_occur_val))
+    logger.debug("{}-{}:{}".format(reverse_id_token_map.get(0),reverse_id_token_map.get(1),co_occur_val))
 
     token_id_of_monkey_king = token_id_map.get(MONKEY_KING)
     vector_of_monkey_king = get_sparse_matrix_vector(sparse_co_occurrence_map,token_id_of_monkey_king,dimension)
-    print("孙悟空向量:{}".format(vector_of_monkey_king))
+    logger.debug("孙悟空向量:{}".format(vector_of_monkey_king))
     token_id_of_zushi = token_id_map.get(ZUSHI)
     vector_of_zushi = get_sparse_matrix_vector(sparse_co_occurrence_map,token_id_of_zushi,dimension)
-    print("祖师向量:{}".format(vector_of_zushi))
+    logger.debug("祖师向量:{}".format(vector_of_zushi))
+
+    cos_similarity = calc_cos_similarity(vector_of_monkey_king,vector_of_zushi)
+    logger.debug("向量相似度：{}".format(cos_similarity))
 
 def get_sparse_matrix_vector(sparse_co_occur_map:dict,token_id,dimension:int):
     vector = list()
@@ -74,9 +84,21 @@ def get_sparse_matrix_val(sparse_co_occur_map:dict,i,j:int):
         co_occur_val = 0
     return co_occur_val
 
+def calc_cos_similarity(vecA,vecB:list):
+    dimension = len(vecA)
+    dot_res = 0
+    dot_a = 0
+    dot_b = 0
+    for i in range(dimension):
+        dot_res += vecA[i]*vecB[i]
+        dot_a += vecA[i]*vecA[i]
+        dot_b += vecB[i]*vecB[i]
+    return dot_res/(math.sqrt(dot_a)*math.sqrt(dot_b))
     
 if __name__=="__main__":
-    
+    logging.basicConfig(
+        level=logging.DEBUG 
+    )
     path = "/Users/alan/dev/refactor/math-lab/corpus/西游记.txt"
     join_symbol = "|"
     symbol_sequence_fname = "symbol_sequence.txt"
@@ -97,4 +119,6 @@ if __name__=="__main__":
             f.write(join_symbol.join(symbol_sequence))
     
     # 2.embedding
-    co_occurrence_embedding(symbol_sequence,token_id_map_fname)
+    window_size = 4 # window contains symbol_i
+    bidirection = True
+    co_occurrence_embedding(symbol_sequence,token_id_map_fname,window_size,bidirection)
