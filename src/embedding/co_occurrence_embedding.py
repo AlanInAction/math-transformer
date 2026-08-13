@@ -8,6 +8,7 @@ cur_path = os.path.curdir
 SPARSE_JOIN_KEY = "-"
 MONKEY_KING = "孙悟空"
 ZUSHI = "祖师"
+DASHENG = "齐天大圣"
 # co_occurrence embedding input:symbol_sequence after tokenizer
 def co_occurrence_embedding(symbol_sequece:list,token_id_map_fname:str,window_size:int,bidirection:bool):
     logger.debug("start embedding")
@@ -51,8 +52,17 @@ def co_occurrence_embedding(symbol_sequece:list,token_id_map_fname:str,window_si
     vector_of_zushi = get_sparse_matrix_vector(sparse_co_occurrence_map,token_id_of_zushi,dimension)
     logger.debug("祖师向量:{}".format(vector_of_zushi))
 
-    cos_similarity = calc_cos_similarity(vector_of_monkey_king,vector_of_zushi)
-    logger.debug("向量相似度：{}".format(cos_similarity))
+    token_id_of_dasheng = token_id_map.get(DASHENG)
+    vector_of_dasheng = get_sparse_matrix_vector(sparse_co_occurrence_map,token_id_of_dasheng,dimension)
+    logger.debug("齐天大圣向量:{}".format(vector_of_dasheng))
+
+    # cos_similarity = calc_cos_similarity(vector_of_monkey_king,vector_of_zushi)
+    logger.debug("{}-{} 向量相似度：{}".format(MONKEY_KING,ZUSHI,calc_cos_similarity(vector_of_monkey_king,vector_of_zushi)))
+    logger.debug("{}-{} 向量相似度：{}".format(MONKEY_KING,DASHENG,calc_cos_similarity(vector_of_monkey_king,vector_of_dasheng)))
+    logger.debug("{}-{} 向量相似度：{}".format(ZUSHI,DASHENG,calc_cos_similarity(vector_of_zushi,vector_of_dasheng)))
+
+    
+
 
 def get_sparse_matrix_vector(sparse_co_occur_map:dict,token_id,dimension:int):
     vector = list()
@@ -100,20 +110,23 @@ if __name__=="__main__":
         level=logging.DEBUG 
     )
     path = "/Users/alan/dev/refactor/math-lab/corpus/西游记.txt"
+    dir_name = os.path.dirname(path)
+    file_name = os.path.basename(path)
+    file_prefix = file_name.split(".")[0]
     join_symbol = "|"
-    symbol_sequence_fname = "symbol_sequence.txt"
-    token_id_map_fname = "vocabulary.json"
+    symbol_sequence_fname = "-symbol_sequence.txt"
+    token_id_map_fname = "-vocabulary.json"
     n_limit = 10000
-    ite_limit = 300
+    ite_limit = 1000
     # 1.tokenizer
-    target_symbol_seq_fname = os.path.join(cur_path,symbol_sequence_fname)
+    target_symbol_seq_fname = os.path.join(dir_name,"{}{}".format(file_prefix,symbol_sequence_fname))
     if os.path.exists(target_symbol_seq_fname):
         with open(target_symbol_seq_fname,"r",encoding="UTF-8") as f:
             lines = f.readlines()
         symbol_sequence = lines[0].split(join_symbol)
     else:
         corpus = bpe.get_corpus(path,50000)
-        symbol_sequence = bpe.bpe(corpus,ite_limit)
+        symbol_sequence,cardinal_map = bpe.bpe(corpus,ite_limit)
         print("symbol_sequence after bpe:{}".format(symbol_sequence))
         with open(target_symbol_seq_fname,"w+",encoding="UTF-8") as f:
             f.write(join_symbol.join(symbol_sequence))
