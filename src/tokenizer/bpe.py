@@ -1,9 +1,100 @@
 import unicodedata
 import logging
+import json
+import os
 logger = logging.getLogger(__name__)
+SYMBOL_SUFFIX="-symbol.txt"
+VOCAB_SUFFIX="-vocab.json"
 # BPE: byte pair encoding, start from sigma N=1, construct vocabulary by symbol merge
-
 def bpe(charseq: str, n_ite_limit: int):
+
+    # 1. set Character Sequence
+    symbol_list = list()
+    seq_n = len(charseq)
+    for i in range(seq_n):
+        symbol_list.append(charseq[i])
+   
+    # 2. metric
+    cardinal_map = dict()
+    pair_count_map = dict()
+    pair_index_map = dict()
+
+
+    for i in range(seq_n):
+        # 2.1 count symbol cardinality
+        countByOne(cardinal_map,symbol_list[i])
+
+    cur_ite = 0
+    # 3. per iteration
+    while cur_ite<n_ite_limit:
+        symbol_list_len = len(symbol_list)
+        for i in range(symbol_list_len):
+            pair_index = i+1
+            if pair_index<symbol_list_len:
+                # 3.1 count symbol pair cardinality
+                byte_pair = (symbol_list[i],symbol_list[pair_index])
+                index_pair = (i,pair_index)
+                countByOne(pair_count_map,byte_pair)
+                addPairIndex(pair_index_map,byte_pair,index_pair)
+        # 4. sort symbol pair cardinality
+        sorted_pair_count_list = sorted(pair_count_map.items(),key=lambda item:-item[1])
+        top1_symbol_item = sorted_pair_count_list[0]
+        top1_symbol_pair = top1_symbol_item[0]
+        top1_symbol_count = top1_symbol_item[1]
+        merged_top1_symbol = tuple_symbol_merge(top1_symbol_pair)
+        logger.debug("top1 symbol:{}->{},count:{}".format(top1_symbol_pair,merged_top1_symbol,top1_symbol_count))
+
+        # 5. merge symbol pair，reverse pop
+        loc_list = pair_index_map.get(top1_symbol_pair)
+
+        new_loc_list = merge_loc_list(loc_list)
+
+        merge_len = len(new_loc_list)
+        for i in range(merge_len):
+            reverse_index = merge_len-1-i
+            reverse_index = new_loc_list[reverse_index]
+            # replace symbol tuple to merged single symbol
+            symbol_list.pop(reverse_index[1])
+            symbol_list[reverse_index[0]] = merged_top1_symbol
+
+        # 6. update cardinal map
+        # can't use pop,here should just -1
+
+        # cardinal_map.pop(top1_symbol_pair[0])
+        # cardinal_map.pop(top1_symbol_pair[1])
+        decreByVal(cardinal_map,top1_symbol_pair[0],merge_len)
+        decreByVal(cardinal_map,top1_symbol_pair[1],merge_len)
+
+        cardinal_map[merged_top1_symbol] = top1_symbol_count
+
+        # 7.update pair count cardinality, can reuse pair count map in one iteration 
+        # but no more iteration,so just clear it,recalculate
+        pair_count_map.clear()
+        pair_index_map.clear()
+
+        cur_ite+=1
+    return symbol_list,cardinal_map
+
+def tuple_symbol_merge(top1_symbol_pair:tuple):
+    return "{}{}".format(top1_symbol_pair[0],top1_symbol_pair[1])
+
+def addPairIndex(pair_index_map:dict,byte_pair:tuple,index_tuple:tuple):
+    pair_index_list = pair_index_map.get(byte_pair)
+    if pair_index_list == None:
+        pair_index_list = list()
+    pair_index_list.append(index_tuple)
+    pair_index_map[byte_pair] = pair_index_list
+        
+def decreByVal(cardinal_map: dict, symbol: str,decreVal:int):
+    pre_cardinal = cardinal_map.get(symbol)
+    if pre_cardinal>=decreVal:
+        cardinal_map[symbol] = pre_cardinal - decreVal
+    else:
+        logger.fatal("this path should not access,symbol:{},decreVal:{},cardinal_map:{}",symbol,decreVal,cardinal_map)
+
+
+# bpe_v0 基于递归的实现方式，TODO 优化递归实现过程中的内存泄漏问题
+def bpe_v0(charseq: str, n_ite_limit: int):
     # 1. Split string to N=1 symbol
     seq_n = len(charseq)
     # 2. Set
@@ -155,6 +246,7 @@ def bpe_rec(set_tuple: tuple, metric_tuple: tuple, bpe_param_tuple: tuple):
 
     return bpe_rec(set_tuple, metric_tuple, bpe_param_tuple)
 
+
 def merge_loc_list(loc_list: list):
     selected = list()
     last_right = -1
@@ -204,9 +296,22 @@ def get_corpus(path: str, line_limit: int):
 def bpe_chapter(path: str, line_limit: int, ite: int):
     lint_char_seq = get_corpus(path, line_limit)
     
-    new_symbol_list = bpe(lint_char_seq, ite)
-    with open(path + "res.txt", "w+", encoding="UTF-8") as f:
+    new_symbol_list,cardinal_map = bpe(lint_char_seq, ite)
+    sorted_symbol_list = sorted(cardinal_map.items(),key=lambda item:(-len(item[0]),-item[1]))
+    sorted_cardinal_map = dict()
+
+    file_name = os.path.basename(path)
+    file_prefix = file_name.split(".")[0]
+    dir_name = os.path.dirname(path)
+    for i in range(len(sorted_symbol_list)):
+        sorted_cardinal_map[sorted_symbol_list[i][0]] = sorted_symbol_list[i][1]
+    
+    with open(os.path.join(dir_name,"{}{}".format(file_prefix,SYMBOL_SUFFIX)), "w+", encoding="UTF-8") as f:
         f.write("|".join(new_symbol_list))
+
+    with open(os.path.join(dir_name,"{}{}".format(file_prefix,VOCAB_SUFFIX)),"w+",encoding="UTF-8") as f:
+        json.dump(sorted_cardinal_map,f,ensure_ascii=False,indent=2)
+    
 
 def bpe_test():
     test_str = "林冲风雪山神庙，武松喋血岳阳楼，林冲误入白虎堂，鲁智深智取二龙山" 
@@ -220,5 +325,5 @@ if __name__ == "__main__":
     bpe_test()
     path = "/Users/alan/dev/refactor/math-lab/corpus/西游记.txt"
     n_limit = 100000
-    ite_limit = 300
+    ite_limit = 1000
     bpe_chapter(path, n_limit, ite_limit)
