@@ -45,21 +45,8 @@ def co_occurrence_embedding(symbol_sequece:list,token_id_map_fname:str,window_si
     co_occur_val = get_sparse_matrix_val(sparse_co_occurrence_map,0,1)
     logger.debug("{}-{}:{}".format(reverse_id_token_map.get(0),reverse_id_token_map.get(1),co_occur_val))
 
-    token_id_of_monkey_king = token_id_map.get(MONKEY_KING)
-    vector_of_monkey_king = get_sparse_matrix_vector(sparse_co_occurrence_map,token_id_of_monkey_king,dimension)
-    logger.debug("孙悟空向量:{}".format(vector_of_monkey_king))
-    token_id_of_zushi = token_id_map.get(ZUSHI)
-    vector_of_zushi = get_sparse_matrix_vector(sparse_co_occurrence_map,token_id_of_zushi,dimension)
-    logger.debug("祖师向量:{}".format(vector_of_zushi))
-
-    token_id_of_dasheng = token_id_map.get(DASHENG)
-    vector_of_dasheng = get_sparse_matrix_vector(sparse_co_occurrence_map,token_id_of_dasheng,dimension)
-    logger.debug("齐天大圣向量:{}".format(vector_of_dasheng))
-
-    # cos_similarity = calc_cos_similarity(vector_of_monkey_king,vector_of_zushi)
-    logger.debug("{}-{} 向量相似度：{}".format(MONKEY_KING,ZUSHI,calc_cos_similarity(vector_of_monkey_king,vector_of_zushi)))
-    logger.debug("{}-{} 向量相似度：{}".format(MONKEY_KING,DASHENG,calc_cos_similarity(vector_of_monkey_king,vector_of_dasheng)))
-    logger.debug("{}-{} 向量相似度：{}".format(ZUSHI,DASHENG,calc_cos_similarity(vector_of_zushi,vector_of_dasheng)))
+    co_matrix_tuple = (token_id_map,sparse_co_occurrence_map,dimension)
+    return co_matrix_tuple
 
     
 
@@ -134,4 +121,22 @@ if __name__=="__main__":
     # 2.embedding
     window_size = 4 # window contains symbol_i
     bidirection = True
-    co_occurrence_embedding(symbol_sequence,token_id_map_fname,window_size,bidirection)
+
+    co_matrix_tuple = co_occurrence_embedding(symbol_sequence,token_id_map_fname,window_size,bidirection)
+
+    token_id_map,sparse_co_occurrence_map,dimension = co_matrix_tuple
+    token_id_of_monkey_king = token_id_map.get(MONKEY_KING)
+    vector_of_monkey_king = get_sparse_matrix_vector(sparse_co_occurrence_map,token_id_of_monkey_king,dimension)
+    logger.debug("孙悟空向量:{}".format(vector_of_monkey_king))
+    token_id_of_zushi = token_id_map.get(ZUSHI)
+    vector_of_zushi = get_sparse_matrix_vector(sparse_co_occurrence_map,token_id_of_zushi,dimension)
+    logger.debug("祖师向量:{}".format(vector_of_zushi))
+
+    token_id_of_dasheng = token_id_map.get(DASHENG)
+    vector_of_dasheng = get_sparse_matrix_vector(sparse_co_occurrence_map,token_id_of_dasheng,dimension)
+    logger.debug("齐天大圣向量:{}".format(vector_of_dasheng))
+
+    # cos_similarity = calc_cos_similarity(vector_of_monkey_king,vector_of_zushi)
+    logger.debug("{}-{} 向量相似度：{}".format(MONKEY_KING,ZUSHI,calc_cos_similarity(vector_of_monkey_king,vector_of_zushi)))
+    logger.debug("{}-{} 向量相似度：{}".format(MONKEY_KING,DASHENG,calc_cos_similarity(vector_of_monkey_king,vector_of_dasheng)))
+    logger.debug("{}-{} 向量相似度：{}".format(ZUSHI,DASHENG,calc_cos_similarity(vector_of_zushi,vector_of_dasheng)))

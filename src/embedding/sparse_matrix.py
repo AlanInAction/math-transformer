@@ -1,3 +1,4 @@
+from src.embedding.vector import dot
 class SparseMatrix:
     def __init__(self, rows: int, cols: int):
         # nxm的矩阵
@@ -11,6 +12,13 @@ class SparseMatrix:
 
     def set(self, i: int, j: int, value: float) -> None:
         """设置 X[i, j]"""
+        # 额外增加了值覆盖的情况，需要考虑到pop
+        if value == 0:
+            row_i_dict = self.data.get(i)
+            if row_i_dict is not None:
+                self.data.pop(j,None)
+            return
+
         row_i_dict = self.data.get(i)
         if row_i_dict == None:
             row_i_dict:dict[int,float] = {}
@@ -21,25 +29,21 @@ class SparseMatrix:
         """获取 X[i, j]，不存在则认为是 0"""
         row_i_dict = self.data.get(i)
         if row_i_dict==None:
-            return 0
+            return 0.0
         cell_ij = row_i_dict.get(j)
         if cell_ij == None:
-            return 0
+            return 0.0
         return cell_ij
 
     def matvec(self, v: list[float]) -> list[float]:
         """计算 Xv"""
         if len(v)!=self.cols:
             raise ValueError("dimension mismatch!")
-        # Mat:n*m v:m*1 计算得到n*1
-        result:list[float] = list()
-        cur_cell_val = 0
-        # 1. 循环计算第i个分量
-        for i in range(self.rows):
-            cur_cell_val = 0
-            for j in range(self.cols):
-                cur_cell_val += self.get(i,j)*v[j]
-            result.append(cur_cell_val)
+        # Mat:n*m v:m*1 计算得到n*1，从原始的矩阵计算->稀疏计算
+        result:list[float] = [0.0] * self.rows
+        for i,row in self.data.items():
+            for j,value in row.items():
+                result[i] += value*v[j]
         return result
 
     def transpose(self) -> "SparseMatrix":
@@ -56,22 +60,26 @@ class SparseMatrix:
 
     def rmatvec(self, v: list[float]) -> list[float]:
         """计算 X^T v"""
-        t_mat = self.transpose()
-        if len(v)!=t_mat.cols:
-                    raise ValueError("dimension mismatch!")
-        return t_mat.matvec(v)
+        # t_mat = self.transpose()
+        # if len(v)!=t_mat.cols:
+        #             raise ValueError("dimension mismatch!")
+        # return t_mat.matvec(v)
+
+        # 更便捷的计算方式
+        result:list[float] = [0.0] * self.cols
+        for i,row in self.data.items():
+            for j,value in row.items():
+                result[j] += value * v[i]
+        return result
 
     def nnz(self) -> int:
         """非零元素数量"""
-        nzero_count = 0
-        cur_val = 0
-        for i in range(self.rows):
-            for j in range(self.cols):
-                cur_val = self.get(i,j)
-                if cur_val>0:
-                    nzero_count += 1
-        return nzero_count
-        
+        # 稀疏矩阵到稀疏计算
+        return sum(len(row) for row in self.data.values())
+
+
+def xtx_matvec(X: SparseMatrix, v: list[float]) -> list[float]:
+    return X.rmatvec(X.matvec(v))   
 
 if __name__=="__main__":
     X = SparseMatrix(2, 3)
@@ -86,4 +94,12 @@ if __name__=="__main__":
     print(X.rmatvec(u))
 
     print(X.nnz())
+
+    u = X.matvec(v)
+    z = X.rmatvec(u)
+
+    left = dot(u,u)
+    right = dot(v,z)
+
+    print(left-right)
 

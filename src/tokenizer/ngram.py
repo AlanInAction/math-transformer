@@ -18,6 +18,7 @@ def ngram(charseq:str,nLimit,topN:int):
     logger.debug(symbol_list)
     logger.debug(cardinal_map)
     symbol_dist[cur_level] = dict()
+    # normalize
     for i in range(seq_n):
         logger.debug("{}-{}".format(cardinal_map[charseq[i]],total_cardinal))
         symbol_dist[cur_level][charseq[i]] = cardinal_map[charseq[i]]/total_cardinal
