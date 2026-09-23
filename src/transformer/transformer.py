@@ -47,7 +47,7 @@ class Vector:
     @classmethod        # class method like java, create a new vector,rather than called by an exist vector
     def random(cls,dimension):
         index_set = list(range(0,dimension))  # [0,dimension)
-        value_set = [random.random() for _ in index_set]
+        value_set = [random.uniform(-1,1) for _ in index_set]   # random.random()
         return cls(index_set,value_set)
 
     @classmethod
@@ -187,15 +187,57 @@ class Matrix:
                  cur_vec_values.append(self.values_set[i].values_set[j])
             values_set.append(Vector(inner_index_set,cur_vec_values))
         return Matrix(outter_index_set,inner_index_set,values_set)
-        
 
+    def scalar_mul(self,scalar:float)->"Matrix":
+        values_set = [
+             vector.scalar_mul(scalar) for vector in self.values_set
+        ]
+        return Matrix(self.outter_index_set,self.inner_index_set,values_set) 
+
+    def print(self):
+        for i in self.outter_index_set:
+            for j in self.inner_index_set:
+                print("{}\t".format(self.values_set[i].values_set[j]))
+            print("\n")
+
+    def __str__(self):
+        rows = []
+
+        for vector in self.values_set:
+            row = " ".join(
+                "{:8.4f}".format(value)
+                for value in vector.values_set
+            )
+            rows.append("[{}]".format(row))
+
+        return "\n".join(rows)
+
+         
+    
+
+        
+# 数值稳定版，指数函数加法与乘法之间的特性
 def softmax(vector:Vector)->Vector:
     index_set = vector.index_set
     values_set = vector.values_set
-    exp_val = [math.pow(math.e,value) for value in values_set]
+    max_value = max(values_set)
+    exp_val = [math.pow(math.e,value-max_value) for value in values_set]
     values_sum = sum(exp_val)
     exp_normalized_valset = [val/values_sum for val in exp_val] 
     return Vector(index_set,exp_normalized_valset)
+
+def softmax_matrix(matrix: Matrix) -> Matrix:
+    values_set = [
+        softmax(vector)
+        for vector in matrix.values_set
+    ]
+
+    return Matrix(
+        matrix.outter_index_set,
+        matrix.inner_index_set,
+        values_set
+    )
+
 
 
 if __name__=="__main__":
@@ -261,15 +303,15 @@ if __name__=="__main__":
     outter_values_list  = list()
     for token_id in input_token_ids:
        # D->R  
-       values_list = co_occurrence_embedding.get_sparse_matrix_val(sparse_co_occurrence_map,token_id,dimension)
-
-       outter_values_list.append(Vector(index_set,values_list))
+        values_list = co_occurrence_embedding.get_sparse_matrix_vector(sparse_co_occurrence_map,token_id,dimension)
+        # print("values_list:{}".format(values_list))
+        outter_values_list.append(Vector(index_set,values_list))
     outter_index_set = list(range(0,len(input_token_ids)))
     # NxD -> DxN
     input_matrix = Matrix(outter_index_set,index_set,outter_values_list).transpose()
+    print("shape:{}".format(input_matrix.shape))
 
-
-
+    # 3.3 Q K V
     Wq = Matrix.random(dimension,dimension)
     Wk = Matrix.random(dimension,dimension)
     Wv = Matrix.random(dimension,dimension)
@@ -279,7 +321,23 @@ if __name__=="__main__":
     V = Wv.matmul_matrix(input_matrix)
     #   nxd dxn -> nxn
     scores = Q.transpose().matmul_matrix(K)
+    print(scores)
 
+    # 4.normalized
+    scaled_scores = scores.scalar_mul(
+         1/math.sqrt(dimension)
+    )
+    print("after scaled\n{}".format(scaled_scores))
+    attention_weights = softmax_matrix(scaled_scores)
+    print("after softmax\n{}".format(attention_weights))
+
+
+    """
+    5.graph propagation nxn
+    restore to dxn representation
+    """
+    contextual = V.matmul_matrix(attention_weights)
+    print("contextual\n{}".format(contextual))
 
 
 
