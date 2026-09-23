@@ -1,5 +1,6 @@
 
-from src.transformer.transformer import Matrix,Vector
+from src.transformer.transformer import Matrix,Vector,softmax_matrix
+import math
 def test_matmul():
     A = Matrix(
     [0, 1],
@@ -58,6 +59,50 @@ def print_matmul():
     print(C.values_set[0].values_set)
     print(C.values_set[1].values_set)
 
+def test_attention():
+    # D x N
+    X = Matrix(
+        [0, 1],
+        [0, 1, 2],
+        [
+            Vector([0, 1, 2], [1, 2, 3]),
+            Vector([0, 1, 2], [4, 5, 6]),
+        ]
+    )
+
+    Wq = Matrix(
+        [0, 1],
+        [0, 1],
+        [
+            Vector([0, 1], [1, 0]),
+            Vector([0, 1], [0, 1]),
+        ]
+    )
+
+    Wk = Wq
+    Wv = Wq
+
+    Q = Wq.matmul_matrix(X)
+    K = Wk.matmul_matrix(X)
+    V = Wv.matmul_matrix(X)
+
+    scores = Q.transpose().matmul_matrix(K)
+
+    scaled = scores.scalar_mul(
+        1 / math.sqrt(2)
+    )
+
+    attention = softmax_matrix(scaled)
+
+    contextual = V.matmul_matrix(attention)
+
+    assert contextual.shape == (2, 3)
+
+    for vector in attention.values_set:
+        assert abs(sum(vector.values_set) - 1.0) < 1e-10
+
 if __name__=="__main__":
     test_matmul()
+    test_attention()
     print_matmul()
+    
