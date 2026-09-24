@@ -1,539 +1,664 @@
-# TinyGPT Learning Project Roadmap
+# math-transformer
 
-## 1. 项目目标
+Exploring Transformer from the perspective of **real analysis, linear algebra, vectors, matrices, and graph propagation** — implemented from scratch in pure Python.
 
-通过从零实现一个最小化 GPT 模型，理解现代大语言模型的核心机制：
-
-* 自然语言如何转换为向量空间
-* Embedding 如何学习语义表示
-* Attention 如何动态建模上下文关系
-* Transformer 如何通过函数复合形成复杂表示
-* 大模型如何通过梯度下降学习语言分布
-
-最终目标：
-
-> 从零实现一个能够完成 Next Token Prediction 的 TinyGPT，并理解其内部数学结构。
+[中文 README](README.zh-CN.md)
 
 ---
 
-# 2. 总体学习路线
+## Overview
 
-```
-形式语言
-    |
-    v
-Tokenizer
-    |
-    v
+`math-transformer` is a learning-oriented implementation of Transformer built from first principles.
+
+The goal is not simply to reproduce a Transformer implementation, but to understand the mathematical structures that gradually lead from a corpus to a Transformer:
+
+```text
+Corpus
+  ↓
+Character Sequence
+  ↓
+Byte Pair Encoding
+  ↓
+Symbol Sequence
+  ↓
+Co-occurrence Graph
+  ↓
+Co-occurrence Matrix
+  ↓
 Embedding
-    |
-    v
-Word2Vec
-    |
-    v
+  ↓
+Token State
+  ↓
 Attention
-    |
-    v
+  ↓
 Transformer Block
-    |
-    v
-Decoder-only GPT
-    |
-    v
-TinyGPT Training
 ```
 
-对应数学路线：
-
-```
-离散集合
-    |
-    v
-映射
-    |
-    v
-向量空间
-    |
-    v
-线性变换
-    |
-    v
-概率分布
-    |
-    v
-优化
-    |
-    v
-函数逼近
-```
+The project deliberately starts with **pure Python**, avoiding deep-learning frameworks in the early stages. This keeps the underlying mathematical operations visible and makes it possible to connect each implementation step with the corresponding mathematical structure.
 
 ---
 
-# 3. Milestone Roadmap
+## Core Idea
 
-| Milestone | 目标                | 核心概念    | 数学对应                  | 实现内容                         | 验收标准                  |
-| --------- | ----------------- | ------- | --------------------- | ---------------------------- | --------------------- |
-| M0        | 项目初始化             | AI实验环境  | 函数实验空间                | Python/Numpy/PyTorch环境、项目结构  | 可以运行实验代码              |
-| M1        | Tokenizer         | 离散语言表示  | 集合、映射                 | 文本与token id转换                | 完成tokenize/detokenize |
-| M2        | Embedding         | 符号到向量   | 映射 (X\rightarrow R^n) | 手写Embedding Layer            | token得到向量             |
-| M3        | Word2Vec          | 学习语义空间  | 概率模型、梯度下降             | Skip-Gram训练                  | 相似语义距离接近              |
-| M4        | Attention基础       | 理解Q/K/V | 线性变换、内积空间             | NumPy实现Single Head Attention | 理解attention计算         |
-| M5        | Attention训练       | 学习关系    | 参数优化                  | 训练Q/K/V矩阵                    | Attention产生语义关系       |
-| M6        | Position Encoding | 引入顺序信息  | Fourier Basis         | 实现sin/cos位置编码                | 模型感知位置                |
-| M7        | Transformer Block | 函数复合    | 高维函数组合                | Attention + FFN + LayerNorm  | 单层Transformer运行       |
-| M8        | GPT Decoder       | 自回归生成   | 条件概率                  | Causal Mask + LM Head        | 完成next token预测        |
-| M9        | Training Pipeline | 完整训练闭环  | 优化理论                  | Dataset/Loss/Optimizer       | Loss下降                |
-| M10       | TinyGPT训练         | 产生语言能力  | 函数逼近                  | 小语料训练                        | 可以生成简单文本              |
-| M11       | 可解释分析             | 理解模型内部  | 几何空间                  | Embedding/Attention可视化       | 观察语义结构                |
-| M12       | PyTorch重构         | 工业实现    | 自动微分                  | nn.Module版本                  | 接近真实LLM结构             |
+The project is built around three complementary perspectives:
 
----
-
-# 4. 核心模块设计
-
-## 4.1 Tokenizer
-
-目标：
-
-将自然语言映射为离散符号。
-
-输入：
-
-```
-我喜欢苹果
+```text
+                 ┌──────────────┐
+                 │ State Machine│
+                 └──────┬───────┘
+                        │
+                        ▼
+              ┌──────────────────┐
+              │ Vector / Matrix  │
+              │     Algebra      │
+              └────────┬─────────┘
+                       │
+                       ▼
+                ┌────────────┐
+                │    Graph   │
+                │ Propagation│
+                └────────────┘
 ```
 
-输出：
+These are not treated as independent topics.
 
-```
-[12,53,89]
-```
+A Transformer can be viewed as a **state transition system** whose states are represented by vectors and matrices, while Attention dynamically constructs a graph over the sequence and propagates information along that graph.
 
-核心：
+This gives the following conceptual transition:
 
-建立：
-
-```
-token <-> id
-```
-
-对应：
-
-形式语言中的：
-
-[
-\Sigma
-]
-
----
-
-# 4.2 Embedding
-
-目标：
-
-将离散空间转换为连续向量空间。
-
-数学：
-
-[
-f:
-Vocabulary
+$$
+\boxed{
+\text{Static Graph}
 \rightarrow
-R^d
-]
-
-实现：
-
-Embedding矩阵：
-
-[
-E\in R^{V\times d}
-]
-
-查询：
-
-[
-x_i=E[i]
-]
-
-理解：
-
-Embedding本质：
-
-> 一个可学习的高维坐标系统。
+\text{Token Representation}
+\rightarrow
+\text{Dynamic Graph}
+\rightarrow
+\text{State Propagation}
+}
+$$
 
 ---
 
-# 4.3 Word2Vec
+## Mathematical Perspective
 
-目标：
+A central idea in this project is to view a vector as a finite-dimensional function.
 
-让模型学习词语之间的语义关系。
+For an index set \(I\),
 
-训练方式：
+$$
+V : I \rightarrow \mathbb{R}
+$$
 
-输入：
+A vector is therefore an indexed collection of scalar values.
 
-```
-king
-```
+For example, if
 
-预测：
+$$
+I=\{0,1,2\},
+$$
 
-```
-queen
-man
-woman
-```
+then
 
-优化：
+$$
+V:I\rightarrow\mathbb{R}
+$$
 
-[
-P(context|word)
-]
+can be represented as
 
-最终：
+$$
+V=(v_0,v_1,v_2).
+$$
 
-语义关系转化为向量空间关系。
+A matrix naturally extends this idea to two index sets:
 
-例如：
+$$
+M:I\times J\rightarrow\mathbb{R}.
+$$
 
-[
-king-man+woman\approx queen
-]
+This perspective provides a unified way to understand vectors, matrices, and higher-dimensional tensors as functions over product index sets.
+
+### Matrix multiplication
+
+For
+
+$$
+A:I\times J\rightarrow\mathbb{R}
+$$
+
+and
+
+$$
+B:J\times K\rightarrow\mathbb{R},
+$$
+
+their product is
+
+$$
+AB:I\times K\rightarrow\mathbb{R},
+$$
+
+with
+
+$$
+(AB)(i,k)
+=
+\sum_{j\in J}A(i,j)B(j,k).
+$$
+
+In other words:
+
+> Fix the output indices and sum over the shared index.
+
+This interpretation becomes particularly useful when understanding Attention.
 
 ---
 
-# 4.4 Attention
+## From Static Graph to Dynamic Graph
 
-核心公式：
+The tokenizer and embedding stages construct a relatively static representation of relationships between symbols.
 
-[
-Attention(Q,K,V)
-================
+The co-occurrence structure can be viewed as a weighted graph:
 
-softmax(
-\frac{QK^T}{\sqrt d}
-)V
-]
+$$
+G_{\text{static}}=\langle V,E\rangle
+$$
 
-其中：
+where:
 
-输入：
+* \(V\) represents tokens/symbols;
+* \(E\) represents co-occurrence relationships;
+* edge weights represent the strength of those relationships.
 
-[
+The embedding process then maps these symbolic relationships into vectors.
+
+The Transformer introduces a different kind of graph.
+
+Given a token state
+
+$$
+X:D\times N\rightarrow\mathbb{R},
+$$
+
+where:
+
+* \(D\) is the embedding/state dimension;
+* \(N\) is the sequence index set;
+
+Attention constructs a graph whose edge weights depend on the current state.
+
+Thus:
+
+$$
+A=A(X).
+$$
+
+The graph is no longer fixed.
+
+It changes according to the current representation of the sequence.
+
+---
+
+## Attention
+
+The current implementation follows the mathematical structure of scaled dot-product Attention.
+
+Given
+
+$$
+X\in\mathbb{R}^{D\times N},
+$$
+
+three independently parameterized transformations produce:
+
+$$
+Q=W_QX,
+$$
+
+$$
+K=W_KX,
+$$
+
+$$
+V=W_VX.
+$$
+
+The interaction between sequence positions is then computed through:
+
+$$
+S=Q^TK.
+$$
+
+Since
+
+$$
+Q^T\in\mathbb{R}^{N\times D},
+\qquad
+K\in\mathbb{R}^{D\times N},
+$$
+
+we obtain:
+
+$$
+S\in\mathbb{R}^{N\times N}.
+$$
+
+This matrix can be interpreted as a dynamically constructed weighted graph over the sequence.
+
+After scaling:
+
+$$
+\hat S=\frac{Q^TK}{\sqrt D},
+$$
+
+softmax converts each row into normalized positive weights:
+
+$$
+A=\operatorname{softmax}(\hat S).
+$$
+
+Finally, these weights propagate transformed token states:
+
+$$
+Y=VA.
+$$
+
+The complete operation can therefore be summarized as:
+
+$$
+\boxed{
 X
-]
+\rightarrow
+Q,K,V
+\rightarrow
+Q^TK
+\rightarrow
+\frac{Q^TK}{\sqrt D}
+\rightarrow
+\operatorname{softmax}
+\rightarrow
+VA
+}
+$$
 
-生成：
+From the graph perspective:
 
-[
-Q=XW_Q
-]
-
-[
-K=XW_K
-]
-
-[
-V=XW_V
-]
-
-理解：
-
-* Q：当前需要寻找的信息
-* K：当前token提供的索引特征
-* V：实际语义内容
-
-Attention本质：
-
-> 根据输入动态生成一个关系矩阵，并重新组合信息。
-
----
-
-# 4.5 Position Encoding
-
-Transformer没有递归结构，因此需要额外加入位置信息。
-
-经典形式：
-
-[
-PE(pos,2i)
-==========
-
-sin(pos/10000^{2i/d})
-]
-
-[
-PE(pos,2i+1)
-============
-
-cos(pos/10000^{2i/d})
-]
-
-对应：
-
-Fourier basis思想。
-
----
-
-# 4.6 Transformer Block
-
-结构：
-
-```
-Input
-
- |
-Embedding
-
- |
-Self Attention
-
- |
-Feed Forward
-
- |
-Residual
-
- |
-LayerNorm
-
- |
-Output
+```text
+Current State
+     │
+     ▼
+ Q / K transformations
+     │
+     ▼
+Dynamic Graph
+     │
+     ▼
+Normalized Edge Weights
+     │
+     ▼
+ V transformation
+     │
+     ▼
+Graph Propagation
+     │
+     ▼
+New Contextual State
 ```
 
-数学：
+This provides the project's current interpretation of Attention:
 
-[
-F(x)=f_n\circ f_{n-1}...\circ f_1(x)
-]
-
-本质：
-
-高维函数复合。
+> **Attention is state-dependent graph propagation.**
 
 ---
 
-# 4.7 GPT Decoder
+## State Machine Perspective
 
-目标：
+The Transformer can also be viewed as a state transition system.
 
-预测：
+Let the current token state be
 
-[
-P(x_t|x_1,x_2,...,x_{t-1})
-]
+$$
+S_t:D\times N\rightarrow\mathbb{R}.
+$$
 
-增加：
+Attention derives a graph from this state:
 
-Causal Mask
+$$
+A(S_t)
+=
+\operatorname{softmax}
+\left(
+\frac{
+(W_QS_t)^T(W_KS_t)
+}{
+\sqrt D
+}
+\right).
+$$
 
-保证：
+The value transformation gives:
 
-当前token不能看到未来信息。
+$$
+M_t=W_VS_t.
+$$
+
+Information is then propagated through the dynamically constructed graph:
+
+$$
+Y_t=M_tA(S_t).
+$$
+
+With residual connections, the process can be expressed conceptually as:
+
+$$
+S_{t+1}
+=
+S_t+\Delta(S_t).
+$$
+
+This creates a direct bridge between:
+
+* state machines,
+* matrix operations,
+* graph propagation,
+* and Transformer blocks.
 
 ---
 
-# 5. 项目目录建议
+## Why Pure Python?
 
+The early stages intentionally avoid PyTorch and other deep-learning frameworks.
+
+The purpose is not performance.
+
+The purpose is visibility.
+
+A framework can express:
+
+```python
+attention(...)
 ```
-tinygpt/
 
+with only a few lines of code.
+
+This project instead asks:
+
+* What is a vector?
+* What is a matrix?
+* Which index is being summed?
+* Why does matrix multiplication have this shape?
+* Why does \(Q^TK\) produce an \(N\times N\) matrix?
+* Why is softmax applied across a particular dimension?
+* What does \(W_V\) actually change?
+* Where does the graph appear?
+* How does the state change?
+
+Only after these structures are understood does a higher-level framework become useful.
+
+PyTorch and automatic differentiation can be introduced later when the project reaches training.
+
+---
+
+## Current Progress
+
+### Completed
+
+* [x] Character sequence representation
+* [x] Byte Pair Encoding (BPE)
+* [x] Symbol sequence generation
+* [x] Co-occurrence graph
+* [x] Sparse co-occurrence matrix
+* [x] Vector representation
+* [x] Matrix representation
+* [x] Matrix-vector multiplication
+* [x] Matrix-matrix multiplication
+* [x] Matrix transpose
+* [x] Co-occurrence embedding
+* [ ] SVD / power iteration foundations
+* [x] Token state representation
+* [x] Scaled dot-product Attention
+* [x] Softmax
+* [x] Attention graph propagation
+
+### Current Milestone
+
+> **Attention — Completed**
+
+The Attention implementation has been verified with deterministic tests and is currently the main completed Transformer component.
+
+### Next
+
+* [ ] Residual connections
+* [ ] Layer Normalization
+* [ ] Feed-Forward Network
+* [ ] Transformer Block
+* [ ] Multi-Head Attention
+* [ ] Positional representation
+* [ ] Training / automatic differentiation
+* [ ] Language modeling
+* [ ] Tiny GPT-style model
+
+---
+
+## Project Structure
+
+```text
+math-transformer/
 ├── README.md
-│
+├── README.zh-CN.md
 ├── docs/
-│   ├── embedding.md
-│   ├── attention.md
-│   ├── transformer.md
-│   └── math_notes.md
+│   ├── tokenizer/
+│   │   └── 1.tokenizer.md
+│   ├── embedding/
+│   │   └── 2.embedding.md
+│   └── transformer/
+│       └── 3.attention.md
 │
-├── data/
+├── src/
+│   ├── tokenizer/
+│   │   ├── __init__.py
+│   │   ├── bpe.py
+│   │   └── ngram.py
+│   │
+│   ├── embedding/
+│   │   ├── __init__.py
+│   │   ├── co_occurrence_embedding.py
+│   │   ├── power_iteration.py
+│   │   ├── sparse_matrix.py
+│   │   ├── svd.py
+│   │   └── vector.py
+│   │
+│   └── transformer/
+│   │   ├── transformer.py
 │
-├── tokenizer/
-│   └── tokenizer.py
-│
-├── model/
-│   ├── embedding.py
-│   ├── attention.py
-│   ├── transformer.py
-│   └── loss.py
-│
-├── optimizer/
-│
-├── train/
-│   ├── dataset.py
-│   └── trainer.py
-│
-├── inference/
-│
-└── experiments/
-    ├── embedding_visualization.ipynb
-    └── attention_visualization.ipynb
+└── tests/
+    └── ...
 ```
+
+The structure follows the conceptual progression of the project rather than the architecture of an existing deep-learning framework.
 
 ---
 
-# 6. 推荐实验顺序
+## Learning Philosophy
 
-## Experiment 1
+The project follows a simple principle:
 
-### Embedding空间实验
+> **Understand the mathematical structure before hiding it behind an abstraction.**
 
-观察：
+Rather than starting from an existing Transformer implementation and working backward, the project builds upward:
 
+```text
+Real Analysis
+      ↓
+Functions
+      ↓
+Finite-dimensional Functions
+      ↓
+Vectors
+      ↓
+Matrices
+      ↓
+Graphs
+      ↓
+Embeddings
+      ↓
+Dynamic Graphs
+      ↓
+Attention
+      ↓
+State Transitions
+      ↓
+Transformer
 ```
-cat
-dog
-lion
 
-apple
-banana
-orange
-```
+The goal is not to minimize the amount of code.
 
-训练后是否自动聚集。
+The goal is to minimize the amount of **unexplained structure**.
 
 ---
 
-## Experiment 2
+## Relationship Between the Stages
 
-### Attention Matrix可视化
+The project can be summarized through two different graph perspectives.
 
-观察：
+### Static representation
 
+```text
+Corpus
+  │
+  ▼
+Symbols
+  │
+  ▼
+Co-occurrence
+  │
+  ▼
+Static Graph
+  │
+  ▼
+Embedding
+  │
+  ▼
+Token Vectors
 ```
-        I love apple
 
-I       0.8 0.1 0.1
+The relationships are extracted from the corpus and remain fixed after construction.
 
-love    0.2 0.7 0.1
+### Dynamic representation
 
-apple   0.1 0.2 0.7
+```text
+Token States
+     │
+     ▼
+   Q / K
+     │
+     ▼
+Dynamic Graph
+     │
+     ▼
+ Attention Weights
+     │
+     ▼
+ V Transformation
+     │
+     ▼
+Graph Propagation
+     │
+     ▼
+Contextual States
 ```
 
-理解：
+The relationships themselves depend on the current state.
 
-模型如何选择上下文。
+This transition from a static graph to a state-dependent graph is one of the central ideas of the project.
 
 ---
 
-## Experiment 3
+## Corpus
 
-### TinyGPT生成实验
+The current experiments use **Journey to the West (西游记)** as the primary corpus.
 
-观察：
+The corpus is used as a concrete environment for exploring:
 
-随机初始化：
+* tokenization,
+* symbol relationships,
+* embedding,
+* contextual representation,
+* and eventually language modeling.
 
-```
-完全随机输出
-```
+The corpus itself is not the primary subject of the project.
 
-训练后：
-
-```
-出现语法结构
-```
-
-理解：
-
-梯度下降如何让：
-
-[
-F_\theta
-]
-
-逼近：
-
-[
-P(language)
-]
+It is the data through which the mathematical structures become observable.
 
 ---
 
-# 7. 数学与AI对应关系
+## Design Principles
 
-| 数学概念 | TinyGPT对应         |
-| ---- | ----------------- |
-| 集合   | Vocabulary        |
-| 离散空间 | Token             |
-| 映射   | Embedding         |
-| 向量空间 | Feature Space     |
-| 线性变换 | Q/K/V Projection  |
-| 矩阵乘法 | Attention         |
-| 概率分布 | Softmax           |
-| 交叉熵  | Loss              |
-| 导数   | Gradient          |
-| 优化   | Parameter Update  |
-| 函数复合 | Transformer Block |
-| 函数逼近 | Language Model    |
+### 1. Mathematics before abstraction
 
----
+Every important operation should first be understandable as a mathematical operation.
 
-# 8. 后续扩展方向
+### 2. Explicit dimensions
 
-完成 TinyGPT 后：
+Shapes are treated as part of the mathematical meaning of an operation.
 
-进入：
+For example:
 
-## TinyCodingAgent
+$$
+X:D\times N
+$$
 
-结构：
+is not merely a storage detail.
 
-```
-TinyGPT
+It says that every sequence position has a \(D\)-dimensional state.
 
-+
+### 3. Index-oriented reasoning
 
-Tool Calling
+Rather than relying only on geometric intuition, operations are understood by fixing output indices and identifying the index being summed or propagated.
 
-+
+### 4. State over static data
 
-State Machine
+A Transformer is not treated as a collection of matrix operations.
 
-+
+It is viewed as a mechanism that repeatedly transforms a state.
 
-Memory
+### 5. Graph interpretation
 
-+
+Attention is understood as dynamically constructing and propagating over a graph.
 
-Feedback Loop
-```
+### 6. Frameworks later
 
-对应：
+High-level frameworks are useful for optimization, automatic differentiation, and large-scale computation.
 
-```
-LLM
- |
-Agent Controller
- |
-Tools
- |
-Environment
- |
-Observation
-```
-
-最终形成：
-
-AI模型 → Agent系统 → 软件工程自动化
+They are intentionally introduced after the mathematical structure becomes clear.
 
 ---
 
-# 9. 项目原则
+## Status
 
-1. 优先理解数学机制，而不是调用框架。
-2. 每个模块都有最小可运行实现。
-3. 每个公式都对应代码。
-4. 每个模型能力都通过实验验证。
-5. 保留实验记录和数学推导。
+This project is under active development.
 
-最终目标：
+The implementation is intentionally incremental: each stage should be mathematically understood, implemented, and tested before moving to the next abstraction layer.
 
-> 构建一个从数学理论、模型原理到工程应用完整贯通的个人AI工程体系。
+Current position:
 
-```
-```
+$$
+\boxed{
+\text{Attention}
+\;\checkmark
+}
+$$
 
-这个文档可以直接作为仓库第一版设计文档。后续每完成一个 milestone，可以继续在对应目录增加实验记录和数学推导。
+Next major milestone:
+
+$$
+\boxed{
+\text{Transformer Block}
+}
+$$
+
+---
+
+## License
+
+This project is primarily a personal learning and experimentation project.
