@@ -1,7 +1,14 @@
-# Python 编译文件与缓存目录
+# Python compiled files and caches
 __pycache__/
 *.py[cod]
 *.pyo
-*.txt
-*.json
-*/__pycache__
+
+# Local environment
+.venv/
+
+# IDE
+.idea/
+.vscode/
+
+# macOS
+.DS_Store

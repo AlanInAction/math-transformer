@@ -240,6 +240,7 @@ def softmax_matrix(matrix: Matrix) -> Matrix:
 
 
 
+
 if __name__=="__main__":
     logging.basicConfig(
         level=logging.DEBUG 
@@ -249,8 +250,8 @@ if __name__=="__main__":
     file_name = os.path.basename(path)
     file_prefix = file_name.split(".")[0]
     join_symbol = "|"
-    symbol_sequence_fname = "-symbol_sequence.txt"
-    token_id_map_fname = "-vocabulary.json"
+    symbol_sequence_fname = "symbol_sequence.txt"
+    token_id_map_fname = "vocabulary.json"
     n_limit = 10000
     ite_limit = 1000
     # 1.tokenizer
