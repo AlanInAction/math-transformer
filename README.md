@@ -84,7 +84,7 @@ $$
 
 A central idea in this project is to view a vector as a finite-dimensional function.
 
-For an index set \(I\),
+For an index set $I$,
 
 $$
 V : I \rightarrow \mathbb{R}
@@ -141,7 +141,7 @@ $$
 with
 
 $$
-(AB)(i,k)=\sum_{j\in J}A(i,j)B(j,k).
+AB_{(i,k)}=\sum_{j\in J}A_{(i,j)}B_{(j,k)}.
 $$
 
 In other words:
@@ -164,8 +164,8 @@ $$
 
 where:
 
-* \(V\) represents tokens/symbols;
-* \(E\) represents co-occurrence relationships;
+* $V$ represents tokens/symbols;
+* $E$ represents co-occurrence relationships;
 * edge weights represent the strength of those relationships.
 
 The embedding process then maps these symbolic relationships into vectors.
@@ -180,8 +180,8 @@ $$
 
 where:
 
-* \(D\) is the embedding/state dimension;
-* \(N\) is the sequence index set;
+* $D$ is the embedding/state dimension;
+* $N$ is the sequence index set;
 
 Attention constructs a graph whose edge weights depend on the current state.
 
@@ -349,9 +349,7 @@ $$
 With residual connections, the process can be expressed conceptually as:
 
 $$
-S_{t+1}
-=
-S_t+\Delta(S_t).
+S_{t+1}=S_t+\Delta(S_t).
 $$
 
 This creates a direct bridge between:
@@ -385,9 +383,9 @@ This project instead asks:
 * What is a matrix?
 * Which index is being summed?
 * Why does matrix multiplication have this shape?
-* Why does \(Q^TK\) produce an \(N\times N\) matrix?
+* Why does $Q^TK$ produce an $N\times N$ matrix?
 * Why is softmax applied across a particular dimension?
-* What does \(W_V\) actually change?
+* What does $W_V$ actually change?
 * Where does the graph appear?
 * How does the state change?
 

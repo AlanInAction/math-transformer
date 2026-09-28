@@ -172,8 +172,8 @@ $$
 
 其中：
 
-* \(V\) 表示 Token / Symbol；
-* \(E\) 表示共现关系；
+* $V$ 表示 Token / Symbol；
+* $E$ 表示共现关系；
 * 边的权重表示共现关系的强弱。
 
 Embedding 再将这些符号之间的关系映射到向量空间。
@@ -188,8 +188,8 @@ $$
 
 其中：
 
-* \(D\) 是 Embedding / State 的维度；
-* \(N\) 是 Sequence 的索引集；
+* $D$ 是 Embedding / State 的维度；
+* $N$ 是 Sequence 的索引集；
 
 Attention 会根据当前状态构造一个动态图。
 
@@ -629,7 +629,7 @@ $$
 
 它表达的是：
 
-> 每一个 Sequence Position 都具有一个 \(D\) 维状态。
+> 每一个 Sequence Position 都具有一个 $D$ 维状态。
 
 ### 3. Index-oriented Reasoning
 
