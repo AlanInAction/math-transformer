@@ -141,9 +141,7 @@ $$
 with
 
 $$
-(AB)(i,k)
-=
-\sum_{j\in J}A(i,j)B(j,k).
+(AB)(i,k)=\sum_{j\in J}A(i,j)B(j,k).
 $$
 
 In other words:
@@ -254,7 +252,7 @@ $$
 softmax converts each row into normalized positive weights:
 
 $$
-A=\operatorname{softmax}(\hat S).
+A=\mathrm{softmax}(\hat S).
 $$
 
 Finally, these weights propagate transformed token states:
@@ -275,7 +273,7 @@ Q^TK
 \rightarrow
 \frac{Q^TK}{\sqrt D}
 \rightarrow
-\operatorname{softmax}
+\mathrm{softmax}
 \rightarrow
 VA
 }
@@ -326,7 +324,7 @@ Attention derives a graph from this state:
 $$
 A(S_t)
 =
-\operatorname{softmax}
+\mathrm{softmax}
 \left(
 \frac{
 (W_QS_t)^T(W_KS_t)

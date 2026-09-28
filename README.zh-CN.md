@@ -92,7 +92,7 @@ $$
 
 项目中的一个重要出发点，是把向量理解为一个有限维函数。
 
-对于索引集 \(I\)：
+对于索引集 $I$：
 
 $$
 V:I\rightarrow\mathbb{R}
@@ -149,9 +149,7 @@ $$
 其中：
 
 $$
-(AB)(i,k)
-=
-\sum_{j\in J}A(i,j)B(j,k).
+AB_{(i,k)}=\sum_{j\in J}A_{(i,j)}B_{(j,k)}.
 $$
 
 也就是说：
@@ -359,9 +357,7 @@ $$
 加入 Residual Connection 后，可以进一步抽象为：
 
 $$
-S_{t+1}
-=
-S_t+\Delta(S_t).
+S_{t+1}=S_t+\Delta(S_t).
 $$
 
 于是，Attention、State Machine、Matrix Operation 和 Graph Propagation 之间建立起了直接联系。
@@ -388,9 +384,9 @@ attention(...)
 * Matrix 到底是什么？
 * Matrix Multiplication 究竟在哪个 Index 上求和？
 * 为什么矩阵乘法具有这样的 Shape？
-* 为什么 \(Q^TK\) 得到的是 \(N\times N\)？
+* 为什么 $Q^TK$ 得到的是 $N\times N$？
 * Softmax 为什么沿着特定维度计算？
-* \(W_V\) 到底改变了什么？
+* $W_V$ 到底改变了什么？
 * Graph 在哪里出现？
 * State 又是如何发生变化的？
 
@@ -415,7 +411,7 @@ attention(...)
 * [x] Matrix-Matrix Multiplication
 * [x] Matrix Transpose
 * [x] Co-occurrence Embedding
-* [x] SVD / Power Iteration 基础
+* [ ] SVD / Power Iteration 基础
 * [x] Token State Representation
 * [x] Scaled Dot-Product Attention
 * [x] Softmax
@@ -599,7 +595,7 @@ $$
 
 ## 语料
 
-当前实验主要使用**《西游记》**作为语料。
+当前实验主要使用《西游记》作为语料。
 
 语料被用于观察和实验：
 
