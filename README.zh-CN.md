@@ -330,16 +330,7 @@ $$
 Attention 根据当前状态构造动态图：
 
 $$
-A(S_t)
-=
-\mathrm{softmax}
-\left(
-\frac{
-(W_QS_t)^T(W_KS_t)
-}{
-\sqrt D
-}
-\right).
+A(S_t)=\mathrm{softmax}\left(\frac{(W_QS_t)^T(W_KS_t)}{\sqrt D}\right).
 $$
 
 Value Transformation：

@@ -322,16 +322,7 @@ $$
 Attention derives a graph from this state:
 
 $$
-A(S_t)
-=
-\mathrm{softmax}
-\left(
-\frac{
-(W_QS_t)^T(W_KS_t)
-}{
-\sqrt D
-}
-\right).
+A(S_t)=\mathrm{softmax}\left(\frac{(W_QS_t)^T(W_KS_t)}{\sqrt D}\right).
 $$
 
 The value transformation gives:
@@ -606,7 +597,7 @@ $$
 
 is not merely a storage detail.
 
-It says that every sequence position has a \(D\)-dimensional state.
+It says that every sequence position has a $D$-dimensional state.
 
 ### 3. Index-oriented reasoning
 
