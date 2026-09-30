@@ -207,8 +207,9 @@ $$
 From the finite-dimensional function perspective, the dot product
 
 $$
-\langle v_i,v_j\rangle =\sum_{d\in D}v_i(d)v_j(d)
+\langle v_i,v_j\rangle=\sum_{d\in D}v_i(d)v_j(d)
 $$
+
 uses the same fixed coordinate-wise multiplication and summation rule for every pair of vectors. This is sufficient for constructing a static representation, but it does not provide a mechanism for dynamically determining how different dimensions and sequence positions should interact in a given context.
 
 Attention introduces such a mechanism.
