@@ -196,6 +196,65 @@ The graph is no longer fixed.
 It changes according to the current representation of the sequence.
 
 ---
+## From Static Embedding to Dynamic Attention
+
+The co-occurrence embedding constructed in the previous stage provides each symbol with a fixed finite-dimensional vector:
+
+$$
+v:I\rightarrow\mathbb{R}.
+$$
+
+From the finite-dimensional function perspective, the dot product
+
+$$
+\langle v_i,v_j\rangle =\sum_{d\in D}v_i(d)v_j(d)
+$$
+uses the same fixed coordinate-wise multiplication and summation rule for every pair of vectors. This is sufficient for constructing a static representation, but it does not provide a mechanism for dynamically determining how different dimensions and sequence positions should interact in a given context.
+
+Attention introduces such a mechanism.
+
+The key idea is to transform the original representation into different families of finite-dimensional functions:
+
+$$
+Q=W_QX,\qquad
+K=W_KX,\qquad
+V=W_VX.
+$$
+
+Here, $W_Q$ and $W_K$ define different weighted views of the same input representation. Their interaction determines how strongly different sequence positions should be related.
+
+For two sequence positions $i$ and $j$:
+
+$$
+S(i,j)=Q_i^TK_j.
+$$
+
+Therefore, $Q^TK$ produces an $N\times N$ relation matrix over the sequence. From the graph perspective, this is the transition from a static co-occurrence graph to a dynamic attention graph whose edge weights depend on the current input representation.
+
+The role of $V$ is different. It provides the representation that is propagated along these dynamically constructed edges.
+
+Thus, the essential structure is:
+
+$$
+X\rightarrow Q,K\rightarrow Q^TK\rightarrow A\rightarrow V\rightarrow Y.
+$$
+
+In this view:
+
+- $Q/K$ construct the relation between sequence positions;
+- $Q^TK$ produces the dynamic edge weights;
+- softmax normalizes these weights;
+- $V$ provides the information carried by the propagated messages;
+- $VA$ performs the weighted information propagation.
+
+The attention mechanism can therefore be understood as a state transformation:
+
+$$
+X\rightarrow Y
+$$
+
+where the index families remain unchanged while the values of the finite-dimensional functions are transformed according to a dynamically constructed relation between sequence elements.
+___
 
 ## Attention
 
