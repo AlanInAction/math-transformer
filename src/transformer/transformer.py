@@ -238,6 +238,35 @@ def softmax_matrix(matrix: Matrix) -> Matrix:
         values_set
     )
 
+def causal_mask(matrix: Matrix)->Matrix:
+     """
+     将分布式图通信降级为序列
+     """
+     if len(matrix.outter_index_set)!=len(matrix.inner_index_set):
+          raise ValueError("can't apply casual mask on non square matrix")
+     values_set = []
+     for i in matrix.outter_index_set:
+          row_values = []
+          for j in matrix.inner_index_set:
+                value = matrix.values_set[i].values_set[j]
+                if j>i:
+                    value = float("-inf")
+                row_values.append(value)
+          values_set.append(Vector(matrix.inner_index_set,row_values))
+     return Matrix(outter_index_set=matrix.outter_index_set,
+                   inner_index_set=matrix.inner_index_set,
+                   values_set=values_set)
+            
+def max_index(vector:Vector)->int:
+     max_val = -1
+     max_index = -1
+     for i in vector.index_set:
+        if vector.values_set[i]>max_val:
+             max_val = vector.values_set[i]
+             max_index = i
+     return max_index
+             
+     
 
 
 
@@ -310,7 +339,7 @@ if __name__=="__main__":
     outter_index_set = list(range(0,len(input_token_ids)))
     # NxD -> DxN
     input_matrix = Matrix(outter_index_set,index_set,outter_values_list).transpose()
-    print("shape:{}".format(input_matrix.shape))
+    logger.debug("shape:{}".format(input_matrix.shape))
 
     # 3.3 Q K V
     Wq = Matrix.random(dimension,dimension)
@@ -322,23 +351,63 @@ if __name__=="__main__":
     V = Wv.matmul_matrix(input_matrix)
     #   nxd dxn -> nxn
     scores = Q.transpose().matmul_matrix(K)
-    print(scores)
+    logger.debug("3.3 图权重计算:\n{}".format(scores))
 
     # 4.normalized
     scaled_scores = scores.scalar_mul(
          1/math.sqrt(dimension)
     )
-    print("after scaled\n{}".format(scaled_scores))
-    attention_weights = softmax_matrix(scaled_scores)
-    print("after softmax\n{}".format(attention_weights))
+    logger.debug("4.1 after scaled:\n{}".format(scaled_scores))
+
+    masked_scores = causal_mask(scaled_scores)
+    logger.debug("4.2 after mask:\n{}".format(masked_scores))
+    attention_weights = softmax_matrix(masked_scores)
+    logger.debug("4.3 after softmax:\n{}".format(attention_weights))
 
 
     """
     5.graph propagation nxn
     restore to dxn representation
+    attention_weights :[v11,v12,v13,v14],need transpose
     """
-    contextual = V.matmul_matrix(attention_weights)
-    print("contextual\n{}".format(contextual))
+    contextual = V.matmul_matrix(attention_weights.transpose())
+    logger.debug("contextual shape:\n{}".format(contextual.shape))
+
+    """
+    6.output projection
+    |V|xD DxN ->|V|xN
+    """
+    vocab_size = len(token_id_map)
+    Wo = Matrix.random(vocab_size,dimension)
+    logits = Wo.matmul_matrix(contextual)
+    logger.debug("output projection shape:\n{}".format(logits.shape))
+
+    """
+    7.prediction probility matrix |V|xN
+    """
+    softmax_on_indexV = softmax_matrix(logits.transpose())
+    predict_of_indexN = softmax_on_indexV.transpose()
+    logger.debug("prediction shape:\n{}".format(predict_of_indexN.shape))
+
+    """
+    8.decode Nx|V|
+    """
+    reverse_id_token_map = dict()
+    for k,v in token_id_map.items():
+         reverse_id_token_map[v]=k
+         
+    decode_matrix = predict_of_indexN.transpose()
+    for i in decode_matrix.outter_index_set:
+         max_index_val = max_index(decode_matrix.values_set[i])
+         max_index_token = reverse_id_token_map.get(max_index_val)
+         logger.debug("cur predict val {}:{}->{}".format(i,max_index_val,max_index_token))
+    
+
+
+
+
+
+
 
 
 
