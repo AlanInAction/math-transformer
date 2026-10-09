@@ -266,84 +266,58 @@ def max_index(vector:Vector)->int:
              max_index = i
      return max_index
 
+class Tokenizer:
 
-class ForwardTransformer:
+    def __init__(self,n_limit=50000,ite_limit=1000,window_size=4,bidirection=True):
+        self.n_limit = n_limit
+        self.ite_limit = ite_limit
+        self.window_size = window_size
+        self.bidirection = bidirection
 
-    def __init__(self,path,n_limit=50000,ite_limit=1000,window_size=4,bidirection=True):
-            
-            dir_name = os.path.dirname(path)
-            file_name = os.path.basename(path)
-            file_prefix = file_name.split(".")[0]
-            join_symbol = "|"
-            symbol_sequence_fname = "symbol_sequence.txt"
-            token_id_map_fname = "vocabulary.json"
-            # 1.tokenizer
-            target_symbol_seq_fname = os.path.join(dir_name,"{}{}".format(file_prefix,symbol_sequence_fname))
-            if os.path.exists(target_symbol_seq_fname):
-                with open(target_symbol_seq_fname,"r",encoding="UTF-8") as f:
-                    lines = f.readlines()
-                symbol_sequence = lines[0].split(join_symbol)
-            else:
-                corpus = bpe.get_corpus(path,n_limit)
-                symbol_sequence,cardinal_map = bpe.bpe(corpus,ite_limit)
-                print("symbol_sequence after bpe:{}".format(symbol_sequence))
-                with open(target_symbol_seq_fname,"w+",encoding="UTF-8") as f:
-                    f.write(join_symbol.join(symbol_sequence))
-            
-            # 2.embedding
+    def tokenize(self,path):
+        dir_name = os.path.dirname(path)
+        file_name = os.path.basename(path)
+        file_prefix = file_name.split(".")[0]
+        join_symbol = "|"
+        symbol_sequence_fname = "symbol_sequence.txt"
+        token_id_map_fname = "vocabulary.json"
+        # 1.tokenizer
+        target_symbol_seq_fname = os.path.join(dir_name,"{}{}".format(file_prefix,symbol_sequence_fname))
+        if os.path.exists(target_symbol_seq_fname):
+            with open(target_symbol_seq_fname,"r",encoding="UTF-8") as f:
+                lines = f.readlines()
+            symbol_sequence = lines[0].split(join_symbol)
+        else:
+            corpus = bpe.get_corpus(path,self.n_limit)
+            symbol_sequence,cardinal_map = bpe.bpe(corpus,self.ite_limit)
+            print("symbol_sequence after bpe:{}".format(symbol_sequence))
+            with open(target_symbol_seq_fname,"w+",encoding="UTF-8") as f:
+                f.write(join_symbol.join(symbol_sequence))
+        
+        self.symbol_sequence = symbol_sequence
+        self.token_id_map_fname = token_id_map_fname
+        
+    def get_embedding(self):
+        # 2.embedding
+        co_matrix_tuple = co_occurrence_embedding.co_occurrence_embedding(self.symbol_sequence,self.token_id_map_fname,self.window_size,self.bidirection)
+        token_id_map,sparse_co_occurrence_map,dimension = co_matrix_tuple
+        self.token_id_map = token_id_map
+        self.sparse_co_occurrence_map = sparse_co_occurrence_map
+        self.dimension_val = dimension
+        return co_matrix_tuple
+    
+    @property
+    def dimension(self):
+        return self.dimension_val
+  
 
-            co_matrix_tuple = co_occurrence_embedding.co_occurrence_embedding(symbol_sequence,token_id_map_fname,window_size,bidirection)
+class SelfAttention:
 
-            token_id_map,sparse_co_occurrence_map,dimension = co_matrix_tuple
-            token_id_of_monkey_king = token_id_map.get(MONKEY_KING)
-            vector_of_monkey_king = co_occurrence_embedding.get_sparse_matrix_vector(sparse_co_occurrence_map,token_id_of_monkey_king,dimension)
-            logger.debug("孙悟空向量:{}".format(vector_of_monkey_king))
-            token_id_of_zushi = token_id_map.get(ZUSHI)
-            vector_of_zushi = co_occurrence_embedding.get_sparse_matrix_vector(sparse_co_occurrence_map,token_id_of_zushi,dimension)
-            logger.debug("祖师向量:{}".format(vector_of_zushi))
+    def __init__(self):
+        pass
 
-            token_id_of_dasheng = token_id_map.get(DASHENG)
-            vector_of_dasheng = co_occurrence_embedding.get_sparse_matrix_vector(sparse_co_occurrence_map,token_id_of_dasheng,dimension)
-            logger.debug("齐天大圣向量:{}".format(vector_of_dasheng))
-
-            # cos_similarity = calc_cos_similarity(vector_of_monkey_king,vector_of_zushi)
-            logger.debug("{}-{} 向量相似度：{}".format(MONKEY_KING,ZUSHI,co_occurrence_embedding.calc_cos_similarity(vector_of_monkey_king,vector_of_zushi)))
-            logger.debug("{}-{} 向量相似度：{}".format(MONKEY_KING,DASHENG,co_occurrence_embedding.calc_cos_similarity(vector_of_monkey_king,vector_of_dasheng)))
-            logger.debug("{}-{} 向量相似度：{}".format(ZUSHI,DASHENG,co_occurrence_embedding.calc_cos_similarity(vector_of_zushi,vector_of_dasheng)))
-
-            self.token_id_map = token_id_map
-            self.dimension = dimension
-            self.sparse_co_occurrence_map = sparse_co_occurrence_map
-
-            reverse_id_token_map = dict()
-            for k,v in self.token_id_map.items():
-                reverse_id_token_map[v]=k
-            self.reverse_id_token_map = reverse_id_token_map
-
-    def forward(self,input_symbols:list[str])->list[tuple]:
-        # 3.transformer
-        dimension = self.dimension
-        # 3.1 symbol list -> token id list
-        input_token_ids = [
-            self.token_id_map.get(symbol)
-            for symbol in input_symbols
-        ]
-        logger.debug("输入序列的token_ids:{}".format(input_token_ids))
-
-        # 3.2 token id embedding
-        index_set = list(range(0,self.dimension))
-        outter_values_list  = list()
-        for token_id in input_token_ids:
-        # D->R  
-            values_list = co_occurrence_embedding.get_sparse_matrix_vector(self.sparse_co_occurrence_map,token_id,dimension)
-            # print("values_list:{}".format(values_list))
-            outter_values_list.append(Vector(index_set,values_list))
-        outter_index_set = list(range(0,len(input_token_ids)))
-        # NxD -> DxN
-        input_matrix = Matrix(outter_index_set,index_set,outter_values_list).transpose()
-        logger.debug("shape:{}".format(input_matrix.shape))
-
-        # 3.3 Q K V
+    def self_attention(self,dimension,input_matrix:Matrix)->Matrix:
+        # 3. Q K V
         Wq = Matrix.random(dimension,dimension)
         Wk = Matrix.random(dimension,dimension)
         Wv = Matrix.random(dimension,dimension)
@@ -374,12 +348,53 @@ class ForwardTransformer:
         """
         contextual = V.matmul_matrix(attention_weights.transpose())
         logger.debug("contextual shape:\n{}".format(contextual.shape))
+        return contextual
+    
+
+class ForwardTransformer:
+
+    def __init__(self,tokenizer:Tokenizer,attention:SelfAttention):
+        self.tokenizer = tokenizer   
+        self.attention = attention
+
+    def forward(self,path,input_symbols:list[str])->list[tuple]:
+        # 1.tokenize
+        self.tokenizer.tokenize(path)
+        # 2. embedding
+        token_id_map,sparse_co_occurrence_map,dimension = self.tokenizer.get_embedding()
+        reverse_id_token_map = dict()
+        for k,v in token_id_map.items():
+            reverse_id_token_map[v]=k
+        reverse_id_token_map = reverse_id_token_map
+        # 3.transformer
+        # 3.1 symbol list -> token id list
+        input_token_ids = [
+            token_id_map.get(symbol)
+            for symbol in input_symbols
+        ]
+        logger.debug("输入序列的token_ids:{}".format(input_token_ids))
+
+        # 3.2 token id embedding
+        index_set = list(range(0,dimension))
+        outter_values_list  = list()
+        for token_id in input_token_ids:
+        # D->R  
+            values_list = co_occurrence_embedding.get_sparse_matrix_vector(sparse_co_occurrence_map,token_id,dimension)
+            # print("values_list:{}".format(values_list))
+            outter_values_list.append(Vector(index_set,values_list))
+        outter_index_set = list(range(0,len(input_token_ids)))
+        # NxD -> DxN
+        input_matrix = Matrix(outter_index_set,index_set,outter_values_list).transpose()
+        logger.debug("shape:{}".format(input_matrix.shape))
+
+        # 4-5
+        contextual = self.attention.self_attention(dimension,input_matrix)
 
         """
         6.output projection
         |V|xD DxN ->|V|xN
         """
-        vocab_size = len(self.token_id_map)
+        vocab_size = len(token_id_map)
         Wo = Matrix.random(vocab_size,dimension)
         logits = Wo.matmul_matrix(contextual)
         logger.debug("output projection shape:\n{}".format(logits.shape))
@@ -399,7 +414,7 @@ class ForwardTransformer:
         for i in decode_matrix.outter_index_set:
             max_index_val = max_index(decode_matrix.values_set[i])
             prediction_val = decode_matrix.values_set[i].values_set[max_index_val]
-            max_index_token = self.reverse_id_token_map.get(max_index_val)
+            max_index_token = reverse_id_token_map.get(max_index_val)
             logger.debug("cur predict val {}:{}->{}".format(i,max_index_val,max_index_token))
             cur_predict_tuple = (max_index_val,max_index_token,prediction_val)
             forward_predict_result.append(cur_predict_tuple)
@@ -415,22 +430,14 @@ if __name__=="__main__":
     ite_limit = 1000
     window_size = 4 # window contains symbol_i
     bidirection = True
-    forward_transformer = ForwardTransformer(path,n_limit,ite_limit,window_size,bidirection)
+    # 1.tokenizer
+    bpe_tokenizer = Tokenizer(n_limit,ite_limit,window_size,bidirection)
+    # 2.attention
+    self_attention = SelfAttention()
+    # 3.transformer
+    forward_transformer = ForwardTransformer(tokenizer=bpe_tokenizer,attention=self_attention)
     input_symbols = ["孙悟空","在","花果山"]
-    forward_predict_result = forward_transformer.forward(input_symbols)
+    forward_predict_result = forward_transformer.forward(path,input_symbols)
     for i in range(len(forward_predict_result)):
          token_id,token_val,prob = forward_predict_result[i]
          logger.debug("index:{}\ttoken_id:{}\ttoken_val:{}\tprob:{}".format(i,token_id,token_val,prob))
-
-
-
-
-
-
-
-
-
-
-
-    
-    
