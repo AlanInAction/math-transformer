@@ -58,7 +58,7 @@ class CausalSelfAttention(nn.Module):
         # 目标形状: (B, T, D) BTT BTD
         output = weights @ V
 
-        # 7: 输出投影
+        # 7: 输出投影 BTD DD BTD
         output = self.w_o(output)  # output.transpose(-2,-1)
 
         return output

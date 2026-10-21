@@ -1,4 +1,5 @@
 import torch
+import torch.nn as nn
 
 from src.transformer.model import (
     CausalSelfAttention,
@@ -115,6 +116,58 @@ def test_transformer_is_causal():
         rtol=1e-5,
     )
 
+def test_model_train():
+    vocab_size = 16
+
+    model = ForwardOnlyTransformer(
+        vocab_size=vocab_size,
+        d_model=16,
+        d_ff=32,
+        max_seq_len=8,
+        n_layers=2,
+    )
+    # BT
+    tokens = torch.tensor([[3, 7, 2, 9, 5, 4]])
+    # 输入序列
+    input_ids = tokens[:, :-1]
+    # 待预测序列
+    targets = tokens[:, 1:]
+    # 模型输出BT，输出BTV
+    logits = model(input_ids)
+
+    loss_fn = nn.CrossEntropyLoss()
+    # 损失函数
+    loss = loss_fn(
+        # (B,T,V) reshape后为：(BT,V)
+        logits.reshape(-1, vocab_size),
+        # target原本为(B,T),reshape后：(BT)
+        targets.reshape(-1),
+    )
+
+    print("logits shape:", logits.shape)
+    print("loss:", loss.item())
+    optimizer = torch.optim.AdamW(
+        model.parameters(),
+        lr=1e-3,
+    )
+
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
+    # 1. 至少有一个参数获得了非零梯度
+    has_nonzero_grad = any(
+        p.grad is not None
+        and torch.isfinite(p.grad).all()
+        and (p.grad != 0).any()
+        for p in model.parameters()
+    )
+    assert has_nonzero_grad
+
+    # 2. 参数更新后仍然是有限数值
+    assert all(
+        torch.isfinite(p).all()
+        for p in model.parameters()
+    )
 
 if __name__ == "__main__":
     test_attention_shape()
@@ -123,5 +176,6 @@ if __name__ == "__main__":
     test_attention_is_causal()
     test_model_logits_shape()
     test_transformer_is_causal()
-    
+    test_model_train()
+
     print("All forward-only tests passed.")
