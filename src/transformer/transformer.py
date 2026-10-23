@@ -1,9 +1,10 @@
 import logging
-import os
-from src.tokenizer import bpe
-from src.embedding import co_occurrence_embedding
 import math
+import os
 import random
+
+from src.embedding import co_occurrence_embedding
+from src.tokenizer import bpe
 
 logger = logging.getLogger(__name__)
 cur_path = os.path.curdir
@@ -28,63 +29,69 @@ DASHENG = "齐天大圣"
 #     delta = attention @ v
 #     return delta
 
+
 class Vector:
     """
     Finite-dimensional function:
     V:I->R
     """
-    def __init__(self,index_set,values_set):
-        if len(index_set)!=len(values_set):
-                    raise ValueError("can't map I->R ,index set cardinal:{}->" \
-                    "value set cardinal:{}".format(len(index_set),len(values_set)))
-        self.index_set = index_set        # index set [1:d],simplified as d 
+
+    def __init__(self, index_set, values_set):
+        if len(index_set) != len(values_set):
+            raise ValueError(
+                f"can't map I->R ,index set cardinal:{len(index_set)}->"
+                f"value set cardinal:{len(values_set)}"
+            )
+        self.index_set = index_set  # index set [1:d],simplified as d
         self.values_set = values_set
-        
-    @property   
+
+    @property
     def dimension(self):
         return len(self.index_set)
 
-    @classmethod        # class method like java, create a new vector,rather than called by an exist vector
-    def random(cls,dimension):
-        index_set = list(range(0,dimension))  # [0,dimension)
-        value_set = [random.uniform(-1,1) for _ in index_set]   # random.random()
-        return cls(index_set,value_set)
+    @classmethod
+    # class method like java, create a new vector,
+    # rather than called by an exist vector
+    def random(cls, dimension):
+        index_set = list(range(0, dimension))  # [0,dimension)
+        value_set = [random.uniform(-1, 1) for _ in index_set]  # random.random()
+        return cls(index_set, value_set)
 
     @classmethod
-    def zeros(cls,dimension):
-        index_set = list(range(0,dimension))
+    def zeros(cls, dimension):
+        index_set = list(range(0, dimension))
         values_set = [0.0] * dimension
-        return cls(index_set,values_set)
+        return cls(index_set, values_set)
 
-
-    def vec_add(self,y:"Vector")->"Vector":
+    def vec_add(self, y: "Vector") -> "Vector":
         if y.dimension != self.dimension:
-             raise ValueError("can't perform vec add in different dimension {}:" \
-             "{}".format(self.dimension,y.dimension)) 
-        values_set = [self.values_set[i]+y.values_set[i] for i in self.index_set]
-        return Vector(self.index_set,values_set)
+            raise ValueError(
+                f"can't perform vec add in different dimension {self.dimension}:{y.dimension}"
+            )
+        values_set = [self.values_set[i] + y.values_set[i] for i in self.index_set]
+        return Vector(self.index_set, values_set)
 
-    def scalar_mul(self,scalar:float)->"Vector":
-        values_set = [self.values_set[i] * scalar for i in self.index_set ]
-        return Vector(self.index_set,values_set) 
+    def scalar_mul(self, scalar: float) -> "Vector":
+        values_set = [self.values_set[i] * scalar for i in self.index_set]
+        return Vector(self.index_set, values_set)
 
-    def dot(self,y:"Vector")->float:
+    def dot(self, y: "Vector") -> float:
         # if self.dimension!=y.dimension:
         #      raise ValueError("can't perform dot in different dimension {}:" \
         #      "{}".format(self.dimension,y.dimension))
         if self.index_set != y.index_set:
-            raise ValueError("can't perform dot in different Index Set {}:" \
-             "{}".format(self.dimension,y.dimension))
-        values_set = [ self.values_set[i] * y.values_set[i] for i in self.index_set ]
-        dot_sum  = sum(values_set)
+            raise ValueError(
+                f"can't perform dot in different Index Set {self.dimension}:{y.dimension}"
+            )
+        values_set = [self.values_set[i] * y.values_set[i] for i in self.index_set]
+        dot_sum = sum(values_set)
         return dot_sum
 
 
-
 class Matrix:
-    def __init__(self,outter_index_set,inner_index_set,values_set:list[Vector]):
+    def __init__(self, outter_index_set, inner_index_set, values_set: list[Vector]):
         """
-        Matrix 
+        Matrix
         Multi Index Set Functino
         IxJ->R
         """
@@ -95,84 +102,92 @@ class Matrix:
         self.values_set = values_set
 
         # check I->value set
-        if len(self.outter_index_set)!=len(self.values_set):
-                raise ValueError("can't map I->value set ,index set cardinal:{}->" \
-                "value set cardinal:{}".format(len(self.outter_index_set),len(self.values_set)))
+        if len(self.outter_index_set) != len(self.values_set):
+            raise ValueError(
+                f"can't map I->value set ,index set cardinal:{len(self.outter_index_set)}->"
+                f"value set cardinal:{len(self.values_set)}"
+            )
         # check column_index_set -> Vector
         for i in range(len(values_set)):
-            if values_set[i].dimension!=len(self.inner_index_set):
-                raise ValueError("can't map I->value set ,index set cardinal:{}->" \
-                "value set cardinal:{}".format(len(self.inner_index_set),values_set[i].dimension))
+            if values_set[i].dimension != len(self.inner_index_set):
+                raise ValueError(
+                    f"can't map I->value set ,index set cardinal:{len(self.inner_index_set)}->"
+                    f"value set cardinal:{values_set[i].dimension}"
+                )
 
     @property
     def shape(self):
-         return (len(self.outter_index_set),len(self.inner_index_set))
+        return (len(self.outter_index_set), len(self.inner_index_set))
 
     @classmethod
-    def random(cls,m,n)->"Matrix":
-        outter_index_set = list(range(0,m)) # [0,m)
-        inner_index_set = list(range(0,n))
+    def random(cls, m, n) -> "Matrix":
+        outter_index_set = list(range(0, m))  # [0,m)
+        inner_index_set = list(range(0, n))
         values_set = [Vector.random(len(inner_index_set)) for _ in outter_index_set]
-        return cls(outter_index_set,inner_index_set,values_set)
+        return cls(outter_index_set, inner_index_set, values_set)
 
     @classmethod
-    def zeros(cls,m,n)->"Matrix":
-        outter_index_set = list(range(0,m)) # [0,m)
-        inner_index_set = list(range(0,n))
+    def zeros(cls, m, n) -> "Matrix":
+        outter_index_set = list(range(0, m))  # [0,m)
+        inner_index_set = list(range(0, n))
         values_set = [Vector.zeros(len(inner_index_set)) for _ in outter_index_set]
-        return cls(outter_index_set,inner_index_set,values_set)
+        return cls(outter_index_set, inner_index_set, values_set)
 
-    def matmul_vector(self,vector:Vector)->Vector:
+    def matmul_vector(self, vector: Vector) -> Vector:
         """
-        Matrix: IxJ 
+        Matrix: IxJ
         vector: Jx1
         result: Ix1
         """
-        if len(self.inner_index_set)!=vector.dimension:
-                     raise ValueError("can't perform vector multiply on different Index Set{}->" \
-                     "{}".format(len(self.inner_index_set),vector.dimension))
+        if len(self.inner_index_set) != vector.dimension:
+            raise ValueError(
+                f"can't perform vector multiply on different Index Set{len(self.inner_index_set)}->"
+                f"{vector.dimension}"
+            )
         index_set = self.outter_index_set
         values_set = [self.values_set[i].dot(vector) for i in index_set]
-        return Vector(index_set,values_set)
+        return Vector(index_set, values_set)
 
-    
-
-    def matmul_matrix(self,other:"Matrix")->"Matrix":
+    def matmul_matrix(self, other: "Matrix") -> "Matrix":
         """
-        MatrixA: IxJ 
+        MatrixA: IxJ
         MatrixB: JxK
         result: IxK
         """
-        outter_index_set = self.outter_index_set 
+        outter_index_set = self.outter_index_set
         common_index_set = self.inner_index_set
         inner_index_set = other.inner_index_set
-        if len(common_index_set)!=len(other.outter_index_set):
-             raise ValueError("can't perform matrix multiply on different Index Set {}->" \
-             "{}".format(len(common_index_set),len(other.outter_index_set)))
+        if len(common_index_set) != len(other.outter_index_set):
+            raise ValueError(
+                f"can't perform matrix multiply on different Index Set {len(common_index_set)}->"
+                f"{len(other.outter_index_set)}"
+            )
         """
         Matrix A是固定I 进行存储    I {A(i,·):J->R}
         Matrix B是固定J 进行存储    J {B(j,·):K->R}
         """
         # first I
         outter_values_list = list()
-        for i in self.outter_index_set: 
+        for i in self.outter_index_set:
             # then K
             inner_values_list = list()
             for k in other.inner_index_set:
                 # common J
                 cur_inner_dot_val = 0
-                for j in common_index_set: 
-                    cur_inner_dot_val+=self.values_set[i].values_set[j]*other.values_set[j].values_set[k]
+                for j in common_index_set:
+                    cur_inner_dot_val += (
+                        self.values_set[i].values_set[j] * other.values_set[j].values_set[k]
+                    )
                 inner_values_list.append(cur_inner_dot_val)
             # M(i,k)
             # K->R
-            cur_vec = Vector(other.inner_index_set,inner_values_list)
+            cur_vec = Vector(other.inner_index_set, inner_values_list)
             # i->Vec
             outter_values_list.append(cur_vec)
         # I->(K->R)
-        return Matrix(outter_index_set,inner_index_set,outter_values_list)
+        return Matrix(outter_index_set, inner_index_set, outter_values_list)
 
-    def transpose(self)->"Matrix":
+    def transpose(self) -> "Matrix":
         """
         MatrixA:     IxJ
         MatrixA^T:   JxI
@@ -184,97 +199,87 @@ class Matrix:
         for j in self.inner_index_set:
             cur_vec_values = list()
             for i in self.outter_index_set:
-                 cur_vec_values.append(self.values_set[i].values_set[j])
-            values_set.append(Vector(inner_index_set,cur_vec_values))
-        return Matrix(outter_index_set,inner_index_set,values_set)
+                cur_vec_values.append(self.values_set[i].values_set[j])
+            values_set.append(Vector(inner_index_set, cur_vec_values))
+        return Matrix(outter_index_set, inner_index_set, values_set)
 
-    def scalar_mul(self,scalar:float)->"Matrix":
-        values_set = [
-             vector.scalar_mul(scalar) for vector in self.values_set
-        ]
-        return Matrix(self.outter_index_set,self.inner_index_set,values_set) 
+    def scalar_mul(self, scalar: float) -> "Matrix":
+        values_set = [vector.scalar_mul(scalar) for vector in self.values_set]
+        return Matrix(self.outter_index_set, self.inner_index_set, values_set)
 
     def print(self):
         for i in self.outter_index_set:
             for j in self.inner_index_set:
-                print("{}\t".format(self.values_set[i].values_set[j]))
+                print(f"{self.values_set[i].values_set[j]}\t")
             print("\n")
 
     def __str__(self):
         rows = []
 
         for vector in self.values_set:
-            row = " ".join(
-                "{:8.4f}".format(value)
-                for value in vector.values_set
-            )
-            rows.append("[{}]".format(row))
+            row = " ".join(f"{value:8.4f}" for value in vector.values_set)
+            rows.append(f"[{row}]")
 
         return "\n".join(rows)
 
-         
-    
 
-        
 # 数值稳定版，指数函数加法与乘法之间的特性
-def softmax(vector:Vector)->Vector:
+def softmax(vector: Vector) -> Vector:
     index_set = vector.index_set
     values_set = vector.values_set
     max_value = max(values_set)
-    exp_val = [math.pow(math.e,value-max_value) for value in values_set]
+    exp_val = [math.pow(math.e, value - max_value) for value in values_set]
     values_sum = sum(exp_val)
-    exp_normalized_valset = [val/values_sum for val in exp_val] 
-    return Vector(index_set,exp_normalized_valset)
+    exp_normalized_valset = [val / values_sum for val in exp_val]
+    return Vector(index_set, exp_normalized_valset)
+
 
 def softmax_matrix(matrix: Matrix) -> Matrix:
-    values_set = [
-        softmax(vector)
-        for vector in matrix.values_set
-    ]
+    values_set = [softmax(vector) for vector in matrix.values_set]
 
+    return Matrix(matrix.outter_index_set, matrix.inner_index_set, values_set)
+
+
+def causal_mask(matrix: Matrix) -> Matrix:
+    """
+    将分布式图通信降级为序列
+    """
+    if len(matrix.outter_index_set) != len(matrix.inner_index_set):
+        raise ValueError("can't apply casual mask on non square matrix")
+    values_set = []
+    for i in matrix.outter_index_set:
+        row_values = []
+        for j in matrix.inner_index_set:
+            value = matrix.values_set[i].values_set[j]
+            if j > i:
+                value = float("-inf")
+            row_values.append(value)
+        values_set.append(Vector(matrix.inner_index_set, row_values))
     return Matrix(
-        matrix.outter_index_set,
-        matrix.inner_index_set,
-        values_set
+        outter_index_set=matrix.outter_index_set,
+        inner_index_set=matrix.inner_index_set,
+        values_set=values_set,
     )
 
-def causal_mask(matrix: Matrix)->Matrix:
-     """
-     将分布式图通信降级为序列
-     """
-     if len(matrix.outter_index_set)!=len(matrix.inner_index_set):
-          raise ValueError("can't apply casual mask on non square matrix")
-     values_set = []
-     for i in matrix.outter_index_set:
-          row_values = []
-          for j in matrix.inner_index_set:
-                value = matrix.values_set[i].values_set[j]
-                if j>i:
-                    value = float("-inf")
-                row_values.append(value)
-          values_set.append(Vector(matrix.inner_index_set,row_values))
-     return Matrix(outter_index_set=matrix.outter_index_set,
-                   inner_index_set=matrix.inner_index_set,
-                   values_set=values_set)
-            
-def max_index(vector:Vector)->int:
-     max_index = vector.index_set[0]
-     max_val = vector.values_set[max_index]
-     for i in vector.index_set:
-        if vector.values_set[i]>max_val:
-             max_val = vector.values_set[i]
-             max_index = i
-     return max_index
+
+def max_index(vector: Vector) -> int:
+    max_index = vector.index_set[0]
+    max_val = vector.values_set[max_index]
+    for i in vector.index_set:
+        if vector.values_set[i] > max_val:
+            max_val = vector.values_set[i]
+            max_index = i
+    return max_index
+
 
 class Tokenizer:
-
-    def __init__(self,n_limit=50000,ite_limit=1000,window_size=4,bidirection=True):
+    def __init__(self, n_limit=50000, ite_limit=1000, window_size=4, bidirection=True):
         self.n_limit = n_limit
         self.ite_limit = ite_limit
         self.window_size = window_size
         self.bidirection = bidirection
 
-    def tokenize(self,path):
+    def tokenize(self, path):
         dir_name = os.path.dirname(path)
         file_name = os.path.basename(path)
         file_prefix = file_name.split(".")[0]
@@ -282,64 +287,62 @@ class Tokenizer:
         symbol_sequence_fname = "symbol_sequence.txt"
         token_id_map_fname = "vocabulary.json"
         # 1.tokenizer
-        target_symbol_seq_fname = os.path.join(dir_name,"{}{}".format(file_prefix,symbol_sequence_fname))
+        target_symbol_seq_fname = os.path.join(dir_name, f"{file_prefix}{symbol_sequence_fname}")
         if os.path.exists(target_symbol_seq_fname):
-            with open(target_symbol_seq_fname,"r",encoding="UTF-8") as f:
+            with open(target_symbol_seq_fname, encoding="UTF-8") as f:
                 lines = f.readlines()
             symbol_sequence = lines[0].split(join_symbol)
         else:
-            corpus = bpe.get_corpus(path,self.n_limit)
-            symbol_sequence,cardinal_map = bpe.bpe(corpus,self.ite_limit)
-            print("symbol_sequence after bpe:{}".format(symbol_sequence))
-            with open(target_symbol_seq_fname,"w+",encoding="UTF-8") as f:
+            corpus = bpe.get_corpus(path, self.n_limit)
+            symbol_sequence, cardinal_map = bpe.bpe(corpus, self.ite_limit)
+            print(f"symbol_sequence after bpe:{symbol_sequence}")
+            with open(target_symbol_seq_fname, "w+", encoding="UTF-8") as f:
                 f.write(join_symbol.join(symbol_sequence))
-        
+
         self.symbol_sequence = symbol_sequence
         self.token_id_map_fname = token_id_map_fname
-        
+
     def get_embedding(self):
         # 2.embedding
-        co_matrix_tuple = co_occurrence_embedding.co_occurrence_embedding(self.symbol_sequence,self.token_id_map_fname,self.window_size,self.bidirection)
-        token_id_map,sparse_co_occurrence_map,dimension = co_matrix_tuple
+        co_matrix_tuple = co_occurrence_embedding.co_occurrence_embedding(
+            self.symbol_sequence, self.token_id_map_fname, self.window_size, self.bidirection
+        )
+        token_id_map, sparse_co_occurrence_map, dimension = co_matrix_tuple
         self.token_id_map = token_id_map
         self.sparse_co_occurrence_map = sparse_co_occurrence_map
         self.dimension_val = dimension
         return co_matrix_tuple
-    
+
     @property
     def dimension(self):
         return self.dimension_val
-  
+
 
 class SelfAttention:
-
     def __init__(self):
         pass
 
-    def self_attention(self,dimension,input_matrix:Matrix)->Matrix:
+    def self_attention(self, dimension, input_matrix: Matrix) -> Matrix:
         # 3. Q K V
-        Wq = Matrix.random(dimension,dimension)
-        Wk = Matrix.random(dimension,dimension)
-        Wv = Matrix.random(dimension,dimension)
+        Wq = Matrix.random(dimension, dimension)
+        Wk = Matrix.random(dimension, dimension)
+        Wv = Matrix.random(dimension, dimension)
         #   dxd  dxn -> dxn
         Q = Wq.matmul_matrix(input_matrix)
         K = Wk.matmul_matrix(input_matrix)
         V = Wv.matmul_matrix(input_matrix)
         #   nxd dxn -> nxn
         scores = Q.transpose().matmul_matrix(K)
-        logger.debug("3.3 图权重计算:\n{}".format(scores))
+        logger.debug(f"3.3 图权重计算:\n{scores}")
 
         # 4.normalized
-        scaled_scores = scores.scalar_mul(
-            1/math.sqrt(dimension)
-        )
-        logger.debug("4.1 after scaled:\n{}".format(scaled_scores))
+        scaled_scores = scores.scalar_mul(1 / math.sqrt(dimension))
+        logger.debug(f"4.1 after scaled:\n{scaled_scores}")
 
         masked_scores = causal_mask(scaled_scores)
-        logger.debug("4.2 after mask:\n{}".format(masked_scores))
+        logger.debug(f"4.2 after mask:\n{masked_scores}")
         attention_weights = softmax_matrix(masked_scores)
-        logger.debug("4.3 after softmax:\n{}".format(attention_weights))
-
+        logger.debug(f"4.3 after softmax:\n{attention_weights}")
 
         """
         5.graph propagation nxn
@@ -347,97 +350,93 @@ class SelfAttention:
         attention_weights :[v11,v12,v13,v14],need transpose
         """
         contextual = V.matmul_matrix(attention_weights.transpose())
-        logger.debug("contextual shape:\n{}".format(contextual.shape))
+        logger.debug(f"contextual shape:\n{contextual.shape}")
         return contextual
-    
+
 
 class ForwardTransformer:
-
-    def __init__(self,tokenizer:Tokenizer,attention:SelfAttention):
-        self.tokenizer = tokenizer   
+    def __init__(self, tokenizer: Tokenizer, attention: SelfAttention):
+        self.tokenizer = tokenizer
         self.attention = attention
 
-    def forward(self,path,input_symbols:list[str])->list[tuple]:
+    def forward(self, path, input_symbols: list[str]) -> list[tuple]:
         # 1.tokenize
         self.tokenizer.tokenize(path)
         # 2. embedding
-        token_id_map,sparse_co_occurrence_map,dimension = self.tokenizer.get_embedding()
+        token_id_map, sparse_co_occurrence_map, dimension = self.tokenizer.get_embedding()
         reverse_id_token_map = dict()
-        for k,v in token_id_map.items():
-            reverse_id_token_map[v]=k
+        for k, v in token_id_map.items():
+            reverse_id_token_map[v] = k
         reverse_id_token_map = reverse_id_token_map
         # 3.transformer
         # 3.1 symbol list -> token id list
-        input_token_ids = [
-            token_id_map.get(symbol)
-            for symbol in input_symbols
-        ]
-        logger.debug("输入序列的token_ids:{}".format(input_token_ids))
+        input_token_ids = [token_id_map.get(symbol) for symbol in input_symbols]
+        logger.debug(f"输入序列的token_ids:{input_token_ids}")
 
         # 3.2 token id embedding
-        index_set = list(range(0,dimension))
-        outter_values_list  = list()
+        index_set = list(range(0, dimension))
+        outter_values_list = list()
         for token_id in input_token_ids:
-        # D->R  
-            values_list = co_occurrence_embedding.get_sparse_matrix_vector(sparse_co_occurrence_map,token_id,dimension)
+            # D->R
+            values_list = co_occurrence_embedding.get_sparse_matrix_vector(
+                sparse_co_occurrence_map, token_id, dimension
+            )
             # print("values_list:{}".format(values_list))
-            outter_values_list.append(Vector(index_set,values_list))
-        outter_index_set = list(range(0,len(input_token_ids)))
+            outter_values_list.append(Vector(index_set, values_list))
+        outter_index_set = list(range(0, len(input_token_ids)))
         # NxD -> DxN
-        input_matrix = Matrix(outter_index_set,index_set,outter_values_list).transpose()
-        logger.debug("shape:{}".format(input_matrix.shape))
+        input_matrix = Matrix(outter_index_set, index_set, outter_values_list).transpose()
+        logger.debug(f"shape:{input_matrix.shape}")
 
         # 4-5
-        contextual = self.attention.self_attention(dimension,input_matrix)
+        contextual = self.attention.self_attention(dimension, input_matrix)
 
         """
         6.output projection
         |V|xD DxN ->|V|xN
         """
         vocab_size = len(token_id_map)
-        Wo = Matrix.random(vocab_size,dimension)
+        Wo = Matrix.random(vocab_size, dimension)
         logits = Wo.matmul_matrix(contextual)
-        logger.debug("output projection shape:\n{}".format(logits.shape))
+        logger.debug(f"output projection shape:\n{logits.shape}")
 
         """
         7.prediction probility matrix |V|xN
         """
         softmax_on_indexV = softmax_matrix(logits.transpose())
         predict_of_indexN = softmax_on_indexV.transpose()
-        logger.debug("prediction shape:\n{}".format(predict_of_indexN.shape))
+        logger.debug(f"prediction shape:\n{predict_of_indexN.shape}")
 
         """
         8.decode Nx|V|
-        """  
+        """
         decode_matrix = predict_of_indexN.transpose()
         forward_predict_result = list()
         for i in decode_matrix.outter_index_set:
             max_index_val = max_index(decode_matrix.values_set[i])
             prediction_val = decode_matrix.values_set[i].values_set[max_index_val]
             max_index_token = reverse_id_token_map.get(max_index_val)
-            logger.debug("cur predict val {}:{}->{}".format(i,max_index_val,max_index_token))
-            cur_predict_tuple = (max_index_val,max_index_token,prediction_val)
+            logger.debug(f"cur predict val {i}:{max_index_val}->{max_index_token}")
+            cur_predict_tuple = (max_index_val, max_index_token, prediction_val)
             forward_predict_result.append(cur_predict_tuple)
         return forward_predict_result
-    
 
-if __name__=="__main__":
-    logging.basicConfig(
-        level=logging.DEBUG 
-    )
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
     path = "/Users/alan/dev/refactor/math-lab/corpus/西游记.txt"
     n_limit = 50000
     ite_limit = 1000
-    window_size = 4 # window contains symbol_i
+    window_size = 4  # window contains symbol_i
     bidirection = True
     # 1.tokenizer
-    bpe_tokenizer = Tokenizer(n_limit,ite_limit,window_size,bidirection)
+    bpe_tokenizer = Tokenizer(n_limit, ite_limit, window_size, bidirection)
     # 2.attention
     self_attention = SelfAttention()
     # 3.transformer
-    forward_transformer = ForwardTransformer(tokenizer=bpe_tokenizer,attention=self_attention)
-    input_symbols = ["孙悟空","在","花果山"]
-    forward_predict_result = forward_transformer.forward(path,input_symbols)
+    forward_transformer = ForwardTransformer(tokenizer=bpe_tokenizer, attention=self_attention)
+    input_symbols = ["孙悟空", "在", "花果山"]
+    forward_predict_result = forward_transformer.forward(path, input_symbols)
     for i in range(len(forward_predict_result)):
-         token_id,token_val,prob = forward_predict_result[i]
-         logger.debug("index:{}\ttoken_id:{}\ttoken_val:{}\tprob:{}".format(i,token_id,token_val,prob))
+        token_id, token_val, prob = forward_predict_result[i]
+        logger.debug(f"index:{i}\ttoken_id:{token_id}\ttoken_val:{token_val}\tprob:{prob}")

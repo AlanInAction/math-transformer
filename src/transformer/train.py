@@ -1,10 +1,10 @@
+import logging
+
 import torch
 import torch.nn as nn
-import logging
 
 from src.transformer.model import ForwardOnlyTransformer
 from src.transformer.transformer import Tokenizer
-
 
 logger = logging.getLogger(__name__)
 
@@ -13,35 +13,28 @@ def create_training_sample(token_ids, seq_len):
     tokens = torch.tensor(token_ids, dtype=torch.long)
 
     input_ids = tokens[:seq_len]
-    targets = tokens[1:seq_len + 1]
+    targets = tokens[1 : seq_len + 1]
 
     return input_ids, targets
+
 
 def get_batch(token_ids, batch_size, seq_len, device="cpu"):
     max_start = len(token_ids) - seq_len - 1
     starts = torch.randint(0, max_start + 1, (batch_size,))
 
-    x = torch.stack([
-        torch.tensor(token_ids[s:s + seq_len])
-        for s in starts.tolist()
-    ])
+    x = torch.stack([torch.tensor(token_ids[s : s + seq_len]) for s in starts.tolist()])
 
-    y = torch.stack([
-        torch.tensor(token_ids[s + 1:s + seq_len + 1])
-        for s in starts.tolist()
-    ])
+    y = torch.stack([torch.tensor(token_ids[s + 1 : s + seq_len + 1]) for s in starts.tolist()])
 
     return x.to(device), y.to(device)
 
-if __name__=="__main__":
 
-    logging.basicConfig(
-        level=logging.DEBUG 
-    )
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
     path = "/Users/alan/dev/refactor/math-lab/corpus/西游记.txt"
     n_limit = 50000
     ite_limit = 1000
-    window_size = 4 # window contains symbol_i
+    window_size = 4  # window contains symbol_i
     bidirection = True
 
     bpe_tokenizer = Tokenizer(
@@ -52,23 +45,17 @@ if __name__=="__main__":
     )
 
     bpe_tokenizer.tokenize(path)
-    token_id_map, sparse_co_occurrence_map, dimension = (
-        bpe_tokenizer.get_embedding()
-    )
+    token_id_map, sparse_co_occurrence_map, dimension = bpe_tokenizer.get_embedding()
 
     symbol_sequence = bpe_tokenizer.symbol_sequence
 
-    token_ids = [
-        token_id_map[symbol]
-        for symbol in symbol_sequence
-    ]
+    token_ids = [token_id_map[symbol] for symbol in symbol_sequence]
 
     # assert len(token_ids) > 1
     # assert all(0 <= token_id < dimension for token_id in token_ids)
 
     logger.info("vocab_size: %d", dimension)
     logger.info("sequence_length: %d", len(token_ids))
-
 
     # model = ForwardOnlyTransformer(
     #     vocab_size=dimension,
@@ -101,7 +88,7 @@ if __name__=="__main__":
     )
 
     # 序列长度 [0,65)
-    tokens = torch.tensor(token_ids[:seq_len + 1], dtype=torch.long)
+    tokens = torch.tensor(token_ids[: seq_len + 1], dtype=torch.long)
 
     input_ids = tokens[:-1].unsqueeze(0)
     targets = tokens[1:].unsqueeze(0)
@@ -120,7 +107,6 @@ if __name__=="__main__":
     print("targets shape:", targets.shape)
     print("logits shape:", logits.shape)
     print("loss:", loss.item())
-
 
     optimizer = torch.optim.AdamW(
         model.parameters(),
@@ -142,13 +128,10 @@ if __name__=="__main__":
     print("loss before:", loss.item())
     print("loss after:", loss_after.item())
 
-
     num_steps = 31
     batch_size = 10
     for step in range(num_steps):
-        input_ids, targets = get_batch(
-            token_ids, batch_size, seq_len
-        )
+        input_ids, targets = get_batch(token_ids, batch_size, seq_len)
 
         logits = model(input_ids)
         loss = loss_fn(
@@ -168,11 +151,7 @@ if __name__=="__main__":
     # 选择一段已有的 Token 序列作为提示
     prompt_symbols = ["孙悟空", "在", "花果山"]
 
-    prompt_ids = [
-        token_id_map[symbol]
-        for symbol in prompt_symbols
-        if symbol in token_id_map
-    ]
+    prompt_ids = [token_id_map[symbol] for symbol in prompt_symbols if symbol in token_id_map]
 
     assert prompt_ids, "提示词没有匹配到词表中的 Token"
 
@@ -190,23 +169,17 @@ if __name__=="__main__":
     )
 
     reverse_id_token_map = dict()
-    for k,v in token_id_map.items():
-        reverse_id_token_map[v]=k
+    for k, v in token_id_map.items():
+        reverse_id_token_map[v] = k
     reverse_id_token_map = reverse_id_token_map
     # 将生成的 Token ID 还原为 BPE 符号
-    generated_symbols = [
-        reverse_id_token_map[token_id]
-        for token_id in generated_ids[0].tolist()
-    ]
+    generated_symbols = [reverse_id_token_map[token_id] for token_id in generated_ids[0].tolist()]
 
     print("Generated symbols:", generated_symbols)
     print("Generated text:", "".join(generated_symbols))
 
-
     next_token_logits = logits[:, -1, :]
-    top_values, top_indices = torch.topk(
-        next_token_logits, k=5, dim=-1
-    )
+    top_values, top_indices = torch.topk(next_token_logits, k=5, dim=-1)
 
     top_probs = torch.softmax(top_values, dim=-1)
 

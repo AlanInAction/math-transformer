@@ -1,14 +1,16 @@
-
-from src.transformer.transformer import Matrix,Vector,softmax_matrix
 import math
+
+from src.transformer.transformer import Matrix, Vector, softmax_matrix
+
+
 def test_matmul():
     A = Matrix(
-    [0, 1],
-    [0, 1, 2],
-    [
-        Vector([0, 1, 2], [1, 2, 3]),
-        Vector([0, 1, 2], [4, 5, 6]),
-    ]
+        [0, 1],
+        [0, 1, 2],
+        [
+            Vector([0, 1, 2], [1, 2, 3]),
+            Vector([0, 1, 2], [4, 5, 6]),
+        ],
     )
 
     B = Matrix(
@@ -18,7 +20,7 @@ def test_matmul():
             Vector([0, 1], [7, 8]),
             Vector([0, 1], [9, 10]),
             Vector([0, 1], [11, 12]),
-        ]
+        ],
     )
 
     C = A.matmul_matrix(B)
@@ -26,23 +28,21 @@ def test_matmul():
     assert C.values_set[0].values_set == [58, 64]
     assert C.values_set[1].values_set == [139, 154]
 
-    v = Vector(
-    [0, 1, 2],
-    [10, 20, 30]
-)
+    v = Vector([0, 1, 2], [10, 20, 30])
 
     result = A.matmul_vector(v)
 
     assert result.values_set == [140, 320]
 
+
 def print_matmul():
     A = Matrix(
-    [0, 1],
-    [0, 1],
-    [
-        Vector([0, 1], [1, 2]),
-        Vector([0, 1], [3, 4]),
-    ]
+        [0, 1],
+        [0, 1],
+        [
+            Vector([0, 1], [1, 2]),
+            Vector([0, 1], [3, 4]),
+        ],
     )
 
     B = Matrix(
@@ -51,13 +51,14 @@ def print_matmul():
         [
             Vector([0, 1], [5, 6]),
             Vector([0, 1], [7, 8]),
-        ]
+        ],
     )
 
     C = A.matmul_matrix(B)
 
     print(C.values_set[0].values_set)
     print(C.values_set[1].values_set)
+
 
 def test_attention():
     # D x N
@@ -67,7 +68,7 @@ def test_attention():
         [
             Vector([0, 1, 2], [1, 2, 3]),
             Vector([0, 1, 2], [4, 5, 6]),
-        ]
+        ],
     )
 
     Wq = Matrix(
@@ -76,7 +77,7 @@ def test_attention():
         [
             Vector([0, 1], [1, 0]),
             Vector([0, 1], [0, 1]),
-        ]
+        ],
     )
 
     Wk = Wq
@@ -88,9 +89,7 @@ def test_attention():
 
     scores = Q.transpose().matmul_matrix(K)
 
-    scaled = scores.scalar_mul(
-        1 / math.sqrt(2)
-    )
+    scaled = scores.scalar_mul(1 / math.sqrt(2))
 
     attention = softmax_matrix(scaled)
 
@@ -101,8 +100,8 @@ def test_attention():
     for vector in attention.values_set:
         assert abs(sum(vector.values_set) - 1.0) < 1e-10
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     test_matmul()
     test_attention()
     print_matmul()
-    

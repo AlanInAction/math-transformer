@@ -1,4 +1,3 @@
-
 import torch
 
 
@@ -8,10 +7,11 @@ def generate(model, input_ids, max_new_tokens):
 
     for _ in range(max_new_tokens):
         # 保留模型上下文窗口内最近的 Token
-        input_context = input_ids[:, -model.max_seq_len:]
+        input_context = input_ids[:, -model.max_seq_len :]
 
         # 前向计算，取最后一个位置的预测分数
         logits = model(input_context)
+        # (B,T,D)选择最后一个输出作为next token
         next_token_logits = logits[:, -1, :]
 
         # 当前先采用贪心解码：选择分数最高的 Token

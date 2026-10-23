@@ -31,14 +31,14 @@ class CausalSelfAttention(nn.Module):
 
         # 1: 计算 Q、K、V
         # dxd btd
-        Q = self.w_q(x)   
+        Q = self.w_q(x)
         K = self.w_k(x)
         V = self.w_v(x)
 
         # 2: 计算 Attention scores
         # 目标形状: (B, T, T) BTD BDT
-        scores = Q @ K.transpose(-2,-1)
-        scores = scores/math.sqrt(D)
+        scores = Q @ K.transpose(-2, -1)
+        scores = scores / math.sqrt(D)
 
         # 3: 构造 causal mask
         # mask 中 True 表示不允许访问的位置
@@ -49,10 +49,10 @@ class CausalSelfAttention(nn.Module):
         )
 
         # 4: 将不允许访问的位置设为负无穷
-        scores = scores.masked_fill(mask,float("-inf"))
+        scores = scores.masked_fill(mask, float("-inf"))
 
         # 5: Softmax 得到 Attention weights
-        weights = torch.softmax(scores,dim=-1)
+        weights = torch.softmax(scores, dim=-1)
 
         # 6: 使用 weights 聚合 V
         # 目标形状: (B, T, D) BTT BTD
@@ -98,12 +98,12 @@ class TransformerBlock(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # 9: Attention、Residual、LayerNorm
         attention_delta = self.attention(x)
-        update_val_1 = x+attention_delta
+        update_val_1 = x + attention_delta
         norm_val_1 = self.norm1(update_val_1)
 
         # 10: FFN、Residual、LayerNorm
         ffn_delta = self.ffn(norm_val_1)
-        update_val_2 = norm_val_1+ffn_delta
+        update_val_2 = norm_val_1 + ffn_delta
         norm_val_2 = self.norm2(update_val_2)
 
         return norm_val_2
@@ -134,12 +134,7 @@ class ForwardOnlyTransformer(nn.Module):
             d_model,
         )
 
-        self.blocks = nn.ModuleList(
-            [
-                TransformerBlock(d_model, d_ff)
-                for _ in range(n_layers)
-            ]
-        )
+        self.blocks = nn.ModuleList([TransformerBlock(d_model, d_ff) for _ in range(n_layers)])
 
         self.final_norm = nn.LayerNorm(d_model)
         self.lm_head = nn.Linear(
@@ -159,18 +154,18 @@ class ForwardOnlyTransformer(nn.Module):
         B, T = input_ids.shape
 
         # 11: 检查序列长度不超过 max_seq_len    input_ids.shape()[-1]
-        if T>self.max_seq_len:
+        if T > self.max_seq_len:
             raise ValueError("can't perform forward,the input shape beyond max_seq_len!")
 
         # 12: 构造位置索引 (T,)
-        positions_shape = torch.arange(T,device=input_ids.device)
+        positions_shape = torch.arange(T, device=input_ids.device)
         # position输入为T,输出为T,D
         position_embedding_val = self.position_embedding(positions_shape)
 
         # 13: Token Embedding + Position Embedding
         # token embedding 输入B,T，输出B,T,D
         token_embedding_val = self.token_embedding(input_ids)
-        x = position_embedding_val+token_embedding_val
+        x = position_embedding_val + token_embedding_val
 
         # TODO 14: 依次通过 Transformer Blocks
         for block in self.blocks:
